@@ -8,8 +8,10 @@ import           Data.String
 import           Data.Text               (Text)
 import           GHC.Generics            (Generic)
 
-import           Telegram.Bot.API        as Telegram
+import           Telegram.Bot.API hiding (forwardMessage, editMessageText)
 import           Telegram.Bot.Simple.Eff
+
+import qualified Telegram.Bot.API     as Telegram
 
 -- | Get current 'ChatId' if possible.
 currentChatId :: BotM (Maybe ChatId)
@@ -145,3 +147,20 @@ replyOrEdit emsg = do
   if uid == Just botUserId
      then editUpdateMessage emsg
      else reply (editMessageToReplyMessage emsg)
+
+-- | Forward message
+forwardMessage :: ForwardMessageRequest -> BotM ()
+forwardMessage = void . liftClientM . Telegram.forwardMessage
+
+-- | Forward message with enabled notification to 'SomeChatId'
+forwardMessageTo :: SomeChatId -> Message -> BotM ()
+forwardMessageTo someChatId msg =
+  forwardMessage $ messageToForwardMessageRequest someChatId Nothing msg
+
+messageToForwardMessageRequest :: SomeChatId -> Maybe Bool -> Message -> ForwardMessageRequest
+messageToForwardMessageRequest someChatId notification Message{..} = ForwardMessageRequest
+  { forwardMessageChatId = someChatId
+  , forwardMessageFromChatId = SomeChatId $ chatId messageChat
+  , forwardMessageDisableNotification = notification
+  , forwardMessageMessageId = messageMessageId
+  }
