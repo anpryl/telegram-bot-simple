@@ -50,6 +50,16 @@ type SendMessage
 sendMessage :: SendMessageRequest -> ClientM (Response Message)
 sendMessage = client (Proxy @SendMessage)
 
+-- ** 'forwardMessage'
+
+type ForwardMessage
+  = "forwardMessage" :> ReqBody '[JSON] ForwardMessageRequest :> Post '[JSON] (Response Message)
+
+-- | Use this method to forward messages of any kind.
+-- On success, the sent Message is returned.
+forwardMessage :: ForwardMessageRequest -> ClientM (Response Message)
+forwardMessage = client (Proxy @ForwardMessage)
+
 -- | Unique identifier for the target chat
 -- or username of the target channel (in the format @\@channelusername@).
 data SomeChatId
@@ -94,3 +104,13 @@ data SendMessageRequest = SendMessageRequest
 
 instance ToJSON   SendMessageRequest where toJSON = gtoJSON
 instance FromJSON SendMessageRequest where parseJSON = gparseJSON
+
+data ForwardMessageRequest = ForwardMessageRequest
+  { forwardMessageChatId              :: SomeChatId -- ^ Unique identifier for the target chat or username of the target channel (in the format @\@channelusername@).
+  , forwardMessageFromChatId          :: SomeChatId -- ^ Unique identifier for the chat where the original message was sent (or channel username in the format @channelusername)
+  , forwardMessageDisableNotification :: Maybe Bool -- ^ Sends the message silently. Users will receive a notification with no sound.
+  , forwardMessageMessageId           :: MessageId -- ^ Message identifier in the chat specified in from_chat_id
+  } deriving (Generic)
+
+instance ToJSON   ForwardMessageRequest where toJSON = gtoJSON
+instance FromJSON ForwardMessageRequest where parseJSON = gparseJSON
