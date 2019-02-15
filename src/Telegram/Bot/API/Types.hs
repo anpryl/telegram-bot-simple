@@ -78,7 +78,7 @@ data ChatType
   | ChatTypeGroup
   | ChatTypeSupergroup
   | ChatTypeChannel
-  deriving (Generic, Show)
+  deriving (Generic, Show, Eq)
 
 instance ToJSON   ChatType where toJSON = gtoJSON
 instance FromJSON ChatType where parseJSON = gparseJSON
