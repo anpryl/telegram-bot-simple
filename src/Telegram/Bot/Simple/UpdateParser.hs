@@ -44,6 +44,13 @@ plainText = do
     then fail "command"
     else pure t
 
+message :: Text -> UpdateParser Text
+message msg = do
+  t <- text
+  if t == msg
+  then pure msg
+  else fail "not that message"
+
 command :: Text -> UpdateParser Text
 command name = do
   t <- text
