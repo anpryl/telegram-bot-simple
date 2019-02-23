@@ -156,7 +156,7 @@ data MessageEntity = MessageEntity
   , messageEntityUser :: Maybe User -- ^ For “text_mention” only, the mentioned user
   } deriving (Generic, Show)
 
--- | Type of the entity. Can be mention (@username), hashtag, bot_command, url, email, bold (bold text), italic (italic text), code (monowidth string), pre (monowidth block), text_link (for clickable text URLs), text_mention (for users without usernames)
+-- | Type of the entity. Can be mention (@username), hashtag, cashtag, bot_command, url, email, phone_number, bold (bold text), italic (italic text), code (monowidth string), pre (monowidth block), text_link (for clickable text URLs), text_mention (for users without usernames)
 data MessageEntityType
   = MessageEntityMention
   | MessageEntityHashtag
@@ -169,6 +169,8 @@ data MessageEntityType
   | MessageEntityPre
   | MessageEntityTextLink
   | MessageEntityTextMention
+  | MessageEntityPhoneNumber
+  | MessageEntityCashtag
   deriving (Eq, Show, Generic)
 
 instance ToJSON   MessageEntityType where toJSON = gtoJSON
