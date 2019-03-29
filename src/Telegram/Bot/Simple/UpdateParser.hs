@@ -47,9 +47,10 @@ plainText = do
 message :: Text -> UpdateParser Text
 message msg = do
   t <- text
-  if t == msg
-  then pure msg
-  else fail "not that message"
+  case Text.words t of
+    (w:ws) | w == msg
+      -> pure (Text.unwords ws)
+    _ -> fail "not that command"
 
 command :: Text -> UpdateParser Text
 command name = do
