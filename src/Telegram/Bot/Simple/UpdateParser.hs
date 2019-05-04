@@ -47,9 +47,17 @@ plainText = do
 message :: Text -> UpdateParser Text
 message msg = do
   t <- text
-  if msg `Text.isPrefixOf` t
-  then pure $ Text.drop (Text.length msg + 1) t
-  else fail "not that message"
+  case parseTextMessage msg t of
+    Just res -> pure res
+    Nothing  -> fail "not that message"
+
+parseTextMessage :: Text -> Text -> Maybe Text
+parseTextMessage expectedMsg incomingMsg = do
+  let requiredWords = Text.words expectedMsg
+      (x,y) = splitAt (length requiredWords) . Text.words $ incomingMsg
+  if requiredWords == x
+  then Just $ Text.unwords y
+  else Nothing
 
 command :: Text -> UpdateParser Text
 command name = do
