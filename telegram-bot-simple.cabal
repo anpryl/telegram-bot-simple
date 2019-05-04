@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b0f1a9c9eb60eb7bbec81ed3a356f6fbdb1c0eded979812657501e07cdebc427
+-- hash: 87bc4e445c654bc11aa308d35fff8d0bc9b1d52880c085137c768637982fb319
 
 name:           telegram-bot-simple
 version:        0.2.0
@@ -45,6 +45,7 @@ library
       Telegram.Bot.Simple.BotApp.Internal
       Telegram.Bot.Simple.Conversation
       Telegram.Bot.Simple.Debug
+      Telegram.Bot.Simple.Delete
       Telegram.Bot.Simple.Eff
       Telegram.Bot.Simple.InlineKeyboard
       Telegram.Bot.Simple.Reply
