@@ -16,6 +16,8 @@ import qualified System.Cron             as Cron
 import qualified Telegram.Bot.API        as Telegram
 import           Telegram.Bot.Simple.Eff
 
+import           Debug.Trace
+
 -- | A bot application.
 data BotApp model action = BotApp
   { botInitialModel :: model
@@ -61,6 +63,7 @@ runJobTask botEnv@BotEnv{..} task = do
     case runEff (task model) of
       (newModel, effects) -> do
         writeTVar botModelVar newModel
+        traceM $ show $ length effects
         return effects
   res <- flip runClientM botClientEnv $
     mapM_ ((>>= liftIO . issueAction botEnv Nothing) . runBotM (BotContext botUser Nothing)) effects
