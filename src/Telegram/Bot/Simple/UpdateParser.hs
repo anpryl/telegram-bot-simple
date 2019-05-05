@@ -53,9 +53,9 @@ message msg = do
 
 parseTextMessage :: Text -> Text -> Maybe Text
 parseTextMessage expectedMsg incomingMsg = do
-  let requiredWords = Text.words expectedMsg
+  let requiredWords = Text.words . Text.toLower $ expectedMsg
       (x,y) = splitAt (length requiredWords) . Text.words $ incomingMsg
-  if requiredWords == x
+  if requiredWords == (Text.toLower <$> x)
   then Just $ Text.unwords y
   else Nothing
 
