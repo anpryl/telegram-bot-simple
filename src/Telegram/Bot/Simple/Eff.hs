@@ -4,6 +4,7 @@ module Telegram.Bot.Simple.Eff where
 
 import           Control.Monad.Reader
 import           Control.Monad.Writer
+import           Control.Monad.Catch
 import           Data.Bifunctor
 import           Servant.Client
 
@@ -13,7 +14,7 @@ import qualified Telegram.Bot.API     as Telegram
 --
 -- The context may include an 'Update' the bot is handling at the moment.
 newtype BotM a = BotM { _runBotM :: ReaderT BotContext ClientM a }
-  deriving (Functor, Applicative, Monad, MonadReader BotContext, MonadIO)
+  deriving (Functor, Applicative, Monad, MonadReader BotContext, MonadIO, MonadThrow, MonadCatch)
 
 data BotContext = BotContext
   { botContextUser   :: Telegram.User

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 83107b4b8a5e48020f12f22d851f2c42dbd55592730f545bcf04b4ca5e7ccc93
+-- hash: c86b3420d31d6474e853742adc150131e874f12c3a45770850eb5522832d6f02
 
 name:           telegram-bot-simple
 version:        0.2.0
@@ -62,6 +62,7 @@ library
     , base >=4.9 && <5
     , bytestring
     , cron
+    , exceptions
     , hashable
     , http-api-data
     , http-client
@@ -92,6 +93,7 @@ executable example-echo-bot
     , base >=4.9 && <5
     , bytestring
     , cron
+    , exceptions
     , hashable
     , http-api-data
     , http-client
@@ -123,6 +125,7 @@ executable example-todo-bot
     , base >=4.9 && <5
     , bytestring
     , cron
+    , exceptions
     , hashable
     , http-api-data
     , http-client

@@ -25,14 +25,15 @@ dependencies:
 - aeson-pretty
 - bytestring
 - cron
+- exceptions
 - hashable
 - http-api-data
 - http-client
 - http-client-tls
 - monad-control
 - mtl
-- profunctors
 - pretty-show
+- profunctors
 - servant
 - servant-client
 - split
