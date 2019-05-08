@@ -20,12 +20,11 @@ category:            Web
 description:         Please see the README on Github at <https://github.com/fizruk/telegram-bot-simple#readme>
 
 dependencies:
-- base >= 4.9 && <5
 - aeson
 - aeson-pretty
+- base >= 4.9 && <5
 - bytestring
 - cron
-- exceptions
 - hashable
 - http-api-data
 - http-client
@@ -34,6 +33,7 @@ dependencies:
 - mtl
 - pretty-show
 - profunctors
+- safe-exceptions
 - servant
 - servant-client
 - split

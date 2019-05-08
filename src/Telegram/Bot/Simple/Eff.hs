@@ -2,9 +2,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Telegram.Bot.Simple.Eff where
 
+import           Control.Exception.Safe
 import           Control.Monad.Reader
 import           Control.Monad.Writer
-import           Control.Monad.Catch
 import           Data.Bifunctor
 import           Servant.Client
 

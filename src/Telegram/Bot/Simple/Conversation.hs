@@ -2,6 +2,7 @@
 {-# LANGUAGE TupleSections   #-}
 module Telegram.Bot.Simple.Conversation where
 
+import           Control.Monad.Reader
 import           Data.Bifunctor
 import           Data.Hashable              (Hashable)
 import           Data.HashMap.Strict        (HashMap)
@@ -29,8 +30,12 @@ conversationBot toConversation BotApp{..} = BotApp
   , botAction       = conversationAction
   , botHandler      = conversationHandler
   , botJobs         = conversationJobs
+  , botErrorHandler = conversationErrorHandler
   }
   where
+    conversationErrorHandler e =
+      (,) <$> asks (toConversation <=< botContextUpdate) <*> botErrorHandler e
+
     conversationInitialModel = HashMap.empty
 
     conversationAction update conversations = do
@@ -63,8 +68,11 @@ useLatestUpdateInJobs BotApp{..} = BotApp
   , botAction       = newAction
   , botHandler      = newHandler
   , botJobs         = newJobs
+  , botErrorHandler = newErrHandler
   }
     where
+      newErrHandler e = (,) <$> asks botContextUpdate <*> botErrorHandler e
+
       newAction update (_, model) = (Just update,) <$> botAction update model
 
       newHandler (update, action) (_update, model) =

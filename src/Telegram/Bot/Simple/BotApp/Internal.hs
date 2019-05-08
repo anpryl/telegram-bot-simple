@@ -5,8 +5,8 @@ module Telegram.Bot.Simple.BotApp.Internal where
 
 import           Control.Concurrent      (ThreadId, forkIO, threadDelay)
 import           Control.Concurrent.STM
+import           Control.Exception.Safe
 import           Control.Monad           (forever, void)
-import           Control.Monad.Except    (catchError)
 import           Control.Monad.Trans     (liftIO)
 import           Data.Bifunctor          (first)
 import           Data.Text               (Text)
@@ -15,8 +15,6 @@ import qualified System.Cron             as Cron
 
 import qualified Telegram.Bot.API        as Telegram
 import           Telegram.Bot.Simple.Eff
-
-import           Debug.Trace
 
 -- | A bot application.
 data BotApp model action = BotApp
@@ -29,6 +27,7 @@ data BotApp model action = BotApp
     -- ^ How to handle @action@s.
   , botJobs         :: [BotJob model action]
     -- ^ Background bot jobs.
+  , botErrorHandler :: SomeException -> BotM action
   }
 
 -- | A background bot job.
@@ -63,7 +62,6 @@ runJobTask botEnv@BotEnv{..} task = do
     case runEff (task model) of
       (newModel, effects) -> do
         writeTVar botModelVar newModel
-        traceM $ show $ length effects
         return effects
   res <- flip runClientM botClientEnv $
     mapM_ ((>>= liftIO . issueAction botEnv Nothing) . runBotM (BotContext botUser Nothing)) effects
@@ -108,7 +106,12 @@ processAction BotApp{..} botEnv@BotEnv{..} update action = do
       (newModel, effects) -> do
         writeTVar botModelVar newModel
         return effects
-  mapM_ ((>>= liftIO . issueAction botEnv update) . runBotM (BotContext botUser update)) effects
+  mapM_ ((>>= liftIO . issueAction botEnv update) . runBot) effects
+  where
+    botCtx = BotContext botUser update
+    runBotCtx = runBotM botCtx
+    runBot act = runBotCtx act `catch` handleBotError
+    handleBotError = runBotCtx . botErrorHandler
 
 -- | A job to wait for the next action and process it.
 processActionJob :: BotApp model action -> BotEnv model action -> ClientM ()
@@ -142,7 +145,7 @@ startPolling handleUpdate = go Nothing
       res <-
         (Right <$> Telegram.getUpdates
           (Telegram.GetUpdatesRequest offset Nothing Nothing Nothing))
-        `catchError` (pure . Left)
+        `catchAny` (pure . Left)
 
       nextUpdateId <- case res of
         Left servantErr -> do
