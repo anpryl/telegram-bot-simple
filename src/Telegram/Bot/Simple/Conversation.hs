@@ -36,8 +36,8 @@ conversationBot toConversation BotApp{..} = BotApp
   }
   where
     conversationErrorHandlers = toConversationErrorHandler <$> botErrorHandlers
-    toConversationErrorHandler (Handler handler) = Handler $ \e ->
-      (,) <$> asks (toConversation <=< botContextUpdate) <*> handler e
+    toConversationErrorHandler (Handler handler) =
+        Handler $ ((,) <$> asks (toConversation <=< botContextUpdate) <*>) . handler
 
     conversationInitialModel = HashMap.empty
 
@@ -75,8 +75,8 @@ useLatestUpdateInJobs BotApp{..} = BotApp
   }
     where
       newErrorHandlers = toNewErrorHandler <$> botErrorHandlers
-      toNewErrorHandler (Handler handler) = Handler $ \e ->
-        (,) <$> asks botContextUpdate <*> handler e
+      toNewErrorHandler (Handler handler) =
+        Handler $ ((,) <$> asks botContextUpdate <*>) . handler
 
       newAction update (_, model) = (Just update,) <$> botAction update model
 
