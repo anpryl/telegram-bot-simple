@@ -1,8 +1,10 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TupleSections   #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Telegram.Bot.Simple.Conversation where
 
 import           Control.Monad.Reader
+import           Control.Exception.Safe
 import           Data.Bifunctor
 import           Data.Hashable              (Hashable)
 import           Data.HashMap.Strict        (HashMap)
@@ -26,15 +28,16 @@ conversationBot
   -> BotApp model action
   -> BotApp (HashMap (Maybe conversation) model) (Maybe conversation, action)
 conversationBot toConversation BotApp{..} = BotApp
-  { botInitialModel = conversationInitialModel
-  , botAction       = conversationAction
-  , botHandler      = conversationHandler
-  , botJobs         = conversationJobs
-  , botErrorHandler = conversationErrorHandler
+  { botInitialModel  = conversationInitialModel
+  , botAction        = conversationAction
+  , botHandler       = conversationHandler
+  , botJobs          = conversationJobs
+  , botErrorHandlers = conversationErrorHandlers
   }
   where
-    conversationErrorHandler e =
-      (,) <$> asks (toConversation <=< botContextUpdate) <*> botErrorHandler e
+    conversationErrorHandlers = toConversationErrorHandler <$> botErrorHandlers
+    toConversationErrorHandler (Handler handler) = Handler $ \e ->
+      (,) <$> asks (toConversation <=< botContextUpdate) <*> handler e
 
     conversationInitialModel = HashMap.empty
 
@@ -64,14 +67,16 @@ useLatestUpdateInJobs
   :: BotApp model action
   -> BotApp (Maybe Telegram.Update, model) (Maybe Telegram.Update, action)
 useLatestUpdateInJobs BotApp{..} = BotApp
-  { botInitialModel = (Nothing, botInitialModel)
-  , botAction       = newAction
-  , botHandler      = newHandler
-  , botJobs         = newJobs
-  , botErrorHandler = newErrHandler
+  { botInitialModel  = (Nothing, botInitialModel)
+  , botAction        = newAction
+  , botHandler       = newHandler
+  , botJobs          = newJobs
+  , botErrorHandlers = newErrorHandlers
   }
     where
-      newErrHandler e = (,) <$> asks botContextUpdate <*> botErrorHandler e
+      newErrorHandlers = toNewErrorHandler <$> botErrorHandlers
+      toNewErrorHandler (Handler handler) = Handler $ \e ->
+        (,) <$> asks botContextUpdate <*> handler e
 
       newAction update (_, model) = (Just update,) <$> botAction update model
 

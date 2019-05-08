@@ -27,7 +27,7 @@ data BotApp model action = BotApp
     -- ^ How to handle @action@s.
   , botJobs         :: [BotJob model action]
     -- ^ Background bot jobs.
-  , botErrorHandler :: SomeException -> BotM action
+  , botErrorHandlers :: [Handler BotM action]
   }
 
 -- | A background bot job.
@@ -109,9 +109,7 @@ processAction BotApp{..} botEnv@BotEnv{..} update action = do
   mapM_ ((>>= liftIO . issueAction botEnv update) . runBot) effects
   where
     botCtx = BotContext botUser update
-    runBotCtx = runBotM botCtx
-    runBot act = runBotCtx act `catch` handleBotError
-    handleBotError = runBotCtx . botErrorHandler
+    runBot act = runBotM botCtx $ act `catches` botErrorHandlers
 
 -- | A job to wait for the next action and process it.
 processActionJob :: BotApp model action -> BotEnv model action -> ClientM ()
