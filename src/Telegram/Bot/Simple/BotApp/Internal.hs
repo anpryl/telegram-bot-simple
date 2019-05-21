@@ -106,10 +106,16 @@ processAction BotApp{..} botEnv@BotEnv{..} update action = do
       (newModel, effects) -> do
         writeTVar botModelVar newModel
         return effects
-  mapM_ ((>>= liftIO . issueAction botEnv update) . runBot) effects
+  mapM_ issueActionIfPossible =<< mapM runBot effects
   where
+    issueActionIfPossible (Just act) = liftIO $ issueAction botEnv update act
+    issueActionIfPossible Nothing = return ()
     botCtx = BotContext botUser update
-    runBot act = runBotM botCtx $ act `catches` botErrorHandlers
+    runBot act = runBotM botCtx $ (Just <$> act)
+                        `catches` (fmap Just <$> botErrorHandlers)
+                        `catchAny` \err -> do
+                          liftIO (print err)
+                          return Nothing
 
 -- | A job to wait for the next action and process it.
 processActionJob :: BotApp model action -> BotEnv model action -> ClientM ()
