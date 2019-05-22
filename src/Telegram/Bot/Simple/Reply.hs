@@ -65,9 +65,12 @@ replyMessageToSendMessageRequest someChatId ReplyMessage{..} = SendMessageReques
 
 -- | Reply in a chat with a given 'SomeChatId'.
 replyTo :: SomeChatId -> ReplyMessage -> BotM ()
-replyTo someChatId rmsg = do
-  let msg = replyMessageToSendMessageRequest someChatId rmsg
-  void $ liftClientM $ sendMessage msg
+replyTo someChatId =
+    void . sendMessageTo . replyMessageToSendMessageRequest someChatId
+
+-- | Send message to a chat.
+sendMessageTo :: SendMessageRequest -> BotM Message
+sendMessageTo = fmap responseResult . liftClientM . sendMessage
 
 -- | Reply in the current chat (if possible).
 reply :: ReplyMessage -> BotM ()
