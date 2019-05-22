@@ -152,13 +152,13 @@ replyOrEdit emsg = do
      else reply (editMessageToReplyMessage emsg)
 
 -- | Forward message
-forwardMessage :: ForwardMessageRequest -> BotM ()
-forwardMessage = void . liftClientM . Telegram.forwardMessage
+forwardMessage :: ForwardMessageRequest -> BotM Message
+forwardMessage = fmap responseResult . liftClientM . Telegram.forwardMessage
 
 -- | Forward message with enabled notification to 'SomeChatId'
 forwardMessageTo :: SomeChatId -> Message -> BotM ()
-forwardMessageTo someChatId msg =
-  forwardMessage $ messageToForwardMessageRequest someChatId Nothing msg
+forwardMessageTo someChatId =
+  void . forwardMessage . messageToForwardMessageRequest someChatId Nothing
 
 messageToForwardMessageRequest :: SomeChatId -> Maybe Bool -> Message -> ForwardMessageRequest
 messageToForwardMessageRequest someChatId notification Message{..} = ForwardMessageRequest
