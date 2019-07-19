@@ -8,7 +8,7 @@ import           Control.Monad.Writer
 import           Data.Bifunctor
 import           Servant.Client
 
-import qualified Telegram.Bot.API     as Telegram
+import qualified Telegram.Bot.API       as Telegram
 
 -- | Bot handler context.
 --

@@ -6,10 +6,11 @@ module Telegram.Bot.Simple.BotApp.Internal where
 import           Control.Concurrent      (ThreadId, forkIO, threadDelay)
 import           Control.Concurrent.STM
 import           Control.Exception.Safe
-import           Control.Monad           (forever, void)
+import           Control.Monad           (void)
 import           Control.Monad.Trans     (liftIO)
 import           Data.Bifunctor          (first)
 import           Data.Text               (Text)
+import           ForkForever
 import           Servant.Client          (ClientEnv, ClientM, runClientM)
 import qualified System.Cron             as Cron
 
@@ -18,14 +19,14 @@ import           Telegram.Bot.Simple.Eff
 
 -- | A bot application.
 data BotApp model action = BotApp
-  { botInitialModel :: model
+  { botInitialModel  :: model
     -- ^ Initial bot state.
-  , botAction       :: Telegram.Update -> model -> Maybe action
+  , botAction        :: Telegram.Update -> model -> Maybe action
     -- ^ How to convert incoming 'Telegram.Update's into @action@s.
     -- See "Telegram.Bot.Simple.UpdateParser" for some helpers.
-  , botHandler      :: action -> model -> Eff action model
+  , botHandler       :: action -> model -> Eff action model
     -- ^ How to handle @action@s.
-  , botJobs         :: [BotJob model action]
+  , botJobs          :: [BotJob model action]
     -- ^ Background bot jobs.
   , botErrorHandlers :: [Handler BotM action]
   }
@@ -109,13 +110,14 @@ processAction BotApp{..} botEnv@BotEnv{..} update action = do
   mapM_ issueActionIfPossible =<< mapM runBot effects
   where
     issueActionIfPossible (Just act) = liftIO $ issueAction botEnv update act
-    issueActionIfPossible Nothing = return ()
+    issueActionIfPossible Nothing    = return ()
     botCtx = BotContext botUser update
-    runBot act = runBotM botCtx $ (Just <$> act)
-                        `catches` (fmap Just <$> botErrorHandlers)
-                        `catchAny` \err -> do
-                          liftIO (print err)
-                          return Nothing
+    runBot act = runBotM botCtx $ do
+        fmap Just act
+            `catches` (fmap Just <$> botErrorHandlers)
+            `catchAny` \err -> do
+                liftIO (print err)
+                return Nothing
 
 -- | A job to wait for the next action and process it.
 processActionJob :: BotApp model action -> BotEnv model action -> ClientM ()
@@ -126,8 +128,8 @@ processActionJob botApp botEnv@BotEnv{..} = do
 -- | Process incoming actions indefinitely.
 processActionsIndefinitely
   :: BotApp model action -> BotEnv model action -> IO ThreadId
-processActionsIndefinitely botApp botEnv = forkIO . forever $ do
-  runClientM (processActionJob botApp botEnv) (botClientEnv botEnv)
+processActionsIndefinitely botApp botEnv = forkForever $
+  void $ runClientM (processActionJob botApp botEnv) (botClientEnv botEnv)
 
 -- | Start 'Telegram.Update' polling for a bot.
 startBotPolling :: BotApp model action -> BotEnv model action -> ClientM ()
@@ -147,16 +149,10 @@ startPolling handleUpdate = go Nothing
       let inc (Telegram.UpdateId n) = Telegram.UpdateId (n + 1)
           offset = fmap inc lastUpdateId
       res <-
-        (Right <$> Telegram.getUpdates
-          (Telegram.GetUpdatesRequest offset Nothing Nothing Nothing))
-        `catchAny` (pure . Left)
+        Telegram.getUpdates (Telegram.GetUpdatesRequest offset Nothing Nothing Nothing)
 
-      nextUpdateId <- case res of
-        Left servantErr -> do
-          liftIO (print servantErr)
-          pure lastUpdateId
-        Right result -> do
-          let updates = Telegram.responseResult result
+      nextUpdateId <- do
+          let updates = Telegram.responseResult res
               updateIds = map Telegram.updateUpdateId updates
               maxUpdateId = maximum (Nothing : map Just updateIds)
           mapM_ handleUpdate updates
