@@ -1,8 +1,8 @@
+{-# LANGUAGE DeriveAnyClass    #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import           Data.Text                        (Text)
-import qualified Data.Text                        as Text
 
 import           Telegram.Bot.API
 import           Telegram.Bot.Simple
@@ -19,6 +19,7 @@ echoBot = BotApp
   { botInitialModel = ()
   , botAction = updateToAction
   , botHandler = handleAction
+  , botErrorHandlers = []
   , botJobs = []
   }
 
