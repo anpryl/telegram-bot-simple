@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import           Data.Text                        (Text)
-
 import           Telegram.Bot.API
 import           Telegram.Bot.Simple
 import           Telegram.Bot.Simple.UpdateParser (updateMessageText)
+
+import           Data.Text                        as Text
 
 type Model = ()
 
