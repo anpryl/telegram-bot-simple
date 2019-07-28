@@ -38,7 +38,7 @@ startBotAsync_ bot env = void (startBotAsync bot env)
 startBot :: BotApp model action -> ClientEnv -> IO (Either ServantError ())
 startBot bot env = do
   botEnv <- startBotEnv bot env
-  runClientM (startBotPolling bot botEnv) env `onException` (putStrLn "HI")
+  runClientM (startBotPolling bot botEnv) env `finally` (putStrLn "HI")
 
 -- | Like 'startBot', but ignores result.
 startBot_ :: BotApp model action -> ClientEnv -> IO ()
