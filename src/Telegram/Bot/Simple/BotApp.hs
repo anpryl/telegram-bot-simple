@@ -12,6 +12,7 @@ module Telegram.Bot.Simple.BotApp (
 ) where
 
 import           Control.Monad                       (void)
+import           Control.Concurrent                  (ThreadId, killThread)
 import           Control.Exception.Safe
 import           Data.String                         (fromString)
 import           ForkForever
@@ -25,8 +26,7 @@ import           Telegram.Bot.Simple.BotApp.Internal
 -- The result is a function that allows you to send actions
 -- directly to the bot.
 startBotAsync :: BotApp model action -> ClientEnv -> IO (action -> IO ())
-startBotAsync bot env = do
-  botEnv <- startBotEnv bot env
+startBotAsync bot env = withBotEnv bot env $ \botEnv -> do
   forkForever_ $ runClientM (startBotPolling bot botEnv) env
   return (issueAction botEnv Nothing)
 
@@ -36,9 +36,8 @@ startBotAsync_ bot env = void (startBotAsync bot env)
 
 -- | Start bot with update polling in the main thread.
 startBot :: BotApp model action -> ClientEnv -> IO (Either ServantError ())
-startBot bot env = do
-  botEnv <- startBotEnv bot env
-  runClientM (startBotPolling bot botEnv) env `finally` (putStrLn "HI")
+startBot bot env = withBotEnv bot env $ \botEnv -> do
+  runClientM (startBotPolling bot botEnv) env
 
 -- | Like 'startBot', but ignores result.
 startBot_ :: BotApp model action -> ClientEnv -> IO ()
@@ -54,9 +53,14 @@ startBot_ bot = void . startBot bot
 getEnvToken :: String -> IO Telegram.Token
 getEnvToken varName = fromString <$> getEnv varName
 
-startBotEnv :: BotApp model action -> ClientEnv -> IO (BotEnv model action)
+withBotEnv :: BotApp model action -> ClientEnv -> (BotEnv model action -> IO a) -> IO a
+withBotEnv bot env act = do
+  (threadIDs, botEnv) <- startBotEnv bot env
+  act botEnv `onException` traverse killThread threadIDs
+
+startBotEnv :: BotApp model action -> ClientEnv -> IO ([ThreadId], BotEnv model action)
 startBotEnv bot env = do
   botEnv <- defaultBotEnv bot env
-  _jobThreadIds <- scheduleBotJobs botEnv (botJobs bot)
-  _actionsThreadId <- processActionsIndefinitely bot botEnv
-  return botEnv
+  jobThreadIds <- scheduleBotJobs botEnv (botJobs bot)
+  actionsThreadId <- processActionsIndefinitely bot botEnv
+  return (jobThreadIds <> [actionsThreadId], botEnv)
