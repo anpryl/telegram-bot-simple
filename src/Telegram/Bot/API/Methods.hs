@@ -10,7 +10,6 @@ import Data.Text (Text)
 import GHC.Generics (Generic)
 import Servant.API
 import Servant.Client hiding (Response)
-import Control.Exception.Safe (catchAny)
 
 import Telegram.Bot.API.Internal.Utils
 import Telegram.Bot.API.MakingRequests
