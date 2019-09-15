@@ -5,5 +5,6 @@ let importNixPkgs = rev:
     pkgs = importNixPkgs "55a82ffcd3090086a935d127c6fb5cd7eabe1f8a";
 in pkgs.haskell.lib.buildStackProject {
   name = "telegram-bot-simple";
+  src = ./.;
   buildInputs = with pkgs; [ gmp zlib haskellPackages.ghcid haskellPackages.stylish-haskell ];
 }
