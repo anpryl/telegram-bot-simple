@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 316113fb725282c695dd732a1c39084e499e49c312cad9003aa2af6273ba8c27
+-- hash: 02c26e7fb6c6709f2c695a4ec576cd699ff453a59d086559bc54547fbd64c1d4
 
 name:           telegram-bot-simple
 version:        0.2.0
@@ -69,6 +69,7 @@ library
     , http-client-tls
     , monad-control
     , mtl
+    , o-clock
     , pretty-show
     , profunctors
     , safe-exceptions
@@ -100,6 +101,7 @@ executable example-echo-bot
     , http-client-tls
     , monad-control
     , mtl
+    , o-clock
     , pretty-show
     , profunctors
     , safe-exceptions
@@ -132,6 +134,7 @@ executable example-todo-bot
     , http-client-tls
     , monad-control
     , mtl
+    , o-clock
     , pretty-show
     , profunctors
     , safe-exceptions
