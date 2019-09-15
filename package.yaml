@@ -43,6 +43,7 @@ dependencies:
 - time
 - transformers
 - unordered-containers
+- o-clock
 
 ghc-options:
 - -Wall
