@@ -1,9 +1,13 @@
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
 module Telegram.Bot.Simple.BotApp.Internal where
 
-import           Control.Concurrent      (ThreadId, forkIO, threadDelay)
+import           Control.Concurrent      (ThreadId, forkIO)
 import           Control.Concurrent.STM
 import           Control.Exception.Safe
 import           Control.Monad           (void)
@@ -13,6 +17,8 @@ import           Data.Text               (Text)
 import           ForkForever
 import           Servant.Client          (ClientEnv, ClientM, runClientM)
 import qualified System.Cron             as Cron
+import           Text.Show.Pretty        (ppShow)
+import           Time
 
 import qualified Telegram.Bot.API        as Telegram
 import           Telegram.Bot.Simple.Eff
@@ -67,7 +73,7 @@ runJobTask botEnv@BotEnv{..} task = do
   res <- flip runClientM botClientEnv $
     mapM_ ((>>= liftIO . issueAction botEnv Nothing) . runBotM (BotContext botUser Nothing)) effects
   case res of
-    Left err -> print err
+    Left err -> (print $ "Job error: " <>  ppShow err)
     Right _  -> return ()
 
 -- | Schedule a cron-like bot job.
@@ -113,11 +119,11 @@ processAction BotApp{..} botEnv@BotEnv{..} update action = do
     issueActionIfPossible Nothing    = return ()
     botCtx = BotContext botUser update
     runBot act = runBotM botCtx $ do
-        fmap Just act
-            `catches` (fmap Just <$> botErrorHandlers)
-            `catchAny` \err -> do
-                liftIO (print err)
-                return Nothing
+      fmap Just act
+        `catches` (fmap Just <$> botErrorHandlers)
+        `catchAny` \err -> do
+          liftIO (print $ "Action error: " <>  ppShow err)
+          return Nothing
 
 -- | A job to wait for the next action and process it.
 processActionJob :: BotApp model action -> BotEnv model action -> ClientM ()
@@ -132,24 +138,32 @@ processActionsIndefinitely botApp botEnv = forkForever $
   void $ runClientM (processActionJob botApp botEnv) (botClientEnv botEnv)
 
 -- | Start 'Telegram.Update' polling for a bot.
-startBotPolling :: BotApp model action -> BotEnv model action -> ClientM ()
-startBotPolling BotApp{..} botEnv@BotEnv{..} = startPolling handleUpdate
+startBotPolling
+    :: forall (unit :: Rat) model action . (KnownDivRat unit Microsecond)
+    => Time unit
+    -> BotApp model action
+    -> BotEnv model action -> ClientM ()
+startBotPolling period BotApp{..} botEnv@BotEnv{..} =
+    startPolling period handleUpdate `catchAny` (\(e :: SomeException) -> liftIO (print $ "GetUpdates failed: " <> ppShow e))
   where
-    handleUpdate update = liftIO . void . forkIO $ do
+    handleUpdate update = void . liftIO . forkIO $ do
       maction <- botAction update <$> readTVarIO botModelVar
       case maction of
         Nothing     -> return ()
         Just action -> issueAction botEnv (Just update) action
 
 -- | Start 'Telegram.Update' polling with a given update handler.
-startPolling :: (Telegram.Update -> ClientM ()) -> ClientM ()
-startPolling handleUpdate = go Nothing
+startPolling
+    :: forall (unit :: Rat) . (KnownDivRat unit Microsecond)
+    => Time unit
+    -> (Telegram.Update -> ClientM ())
+    -> ClientM ()
+startPolling period handleUpdate = go Nothing
   where
     go lastUpdateId = do
       let inc (Telegram.UpdateId n) = Telegram.UpdateId (n + 1)
           offset = fmap inc lastUpdateId
-      res <-
-        Telegram.getUpdates (Telegram.GetUpdatesRequest offset Nothing Nothing Nothing)
+      res <- Telegram.getUpdates (Telegram.GetUpdatesRequest offset Nothing Nothing Nothing)
 
       nextUpdateId <- do
           let updates = Telegram.responseResult res
@@ -157,5 +171,5 @@ startPolling handleUpdate = go Nothing
               maxUpdateId = maximum (Nothing : map Just updateIds)
           mapM_ handleUpdate updates
           pure maxUpdateId
-      liftIO $ threadDelay 1000000
+      liftIO $ threadDelay period
       go nextUpdateId

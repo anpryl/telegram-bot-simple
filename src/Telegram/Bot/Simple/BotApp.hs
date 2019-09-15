@@ -1,3 +1,8 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
 module Telegram.Bot.Simple.BotApp (
   BotApp(..),
   BotJob(..),
@@ -9,6 +14,7 @@ module Telegram.Bot.Simple.BotApp (
   startBotAsync_,
 
   getEnvToken,
+  defaultPeriod,
 ) where
 
 import           Control.Monad                       (void)
@@ -18,30 +24,53 @@ import           Data.String                         (fromString)
 import           ForkForever
 import           Servant.Client
 import           System.Environment                  (getEnv)
+import           Time
 
 import qualified Telegram.Bot.API                    as Telegram
 import           Telegram.Bot.Simple.BotApp.Internal
 
+defaultPeriod :: Time Second
+defaultPeriod = Time @Second 10
+
 -- | Start bot with asynchronous polling.
 -- The result is a function that allows you to send actions
 -- directly to the bot.
-startBotAsync :: BotApp model action -> ClientEnv -> IO (action -> IO ())
-startBotAsync bot env = withBotEnv bot env $ \botEnv -> do
-  forkForever_ $ runClientM (startBotPolling bot botEnv) env
+startBotAsync
+    :: forall (unit :: Rat) model action . (KnownDivRat unit Microsecond)
+    => Time unit
+    -> BotApp model action
+    -> ClientEnv
+    -> IO (action -> IO ())
+startBotAsync period bot env = withBotEnv bot env $ \botEnv -> do
+  forkForever_ $ runClientM (startBotPolling period bot botEnv) env
   return (issueAction botEnv Nothing)
 
 -- | Like 'startBotAsync', but ignores result.
-startBotAsync_ :: BotApp model action -> ClientEnv -> IO ()
-startBotAsync_ bot env = void (startBotAsync bot env)
+startBotAsync_
+    :: forall (unit :: Rat) model action . (KnownDivRat unit Microsecond)
+    => Time unit
+    -> BotApp model action
+    -> ClientEnv -> IO ()
+startBotAsync_ period bot env = void (startBotAsync period bot env)
 
 -- | Start bot with update polling in the main thread.
-startBot :: BotApp model action -> ClientEnv -> IO (Either ServantError ())
-startBot bot env = withBotEnv bot env $ \botEnv -> do
-  runClientM (startBotPolling bot botEnv) env
+startBot
+    :: forall (unit :: Rat) model action . (KnownDivRat unit Microsecond)
+    => Time unit
+    -> BotApp model action
+    -> ClientEnv
+    -> IO (Either ServantError ())
+startBot period bot env = withBotEnv bot env $ \botEnv -> do
+  runClientM (startBotPolling period bot botEnv) env
 
 -- | Like 'startBot', but ignores result.
-startBot_ :: BotApp model action -> ClientEnv -> IO ()
-startBot_ bot = void . startBot bot
+startBot_
+    :: forall (unit :: Rat) model action . (KnownDivRat unit Microsecond)
+    => Time unit
+    -> BotApp model action
+    -> ClientEnv
+    -> IO ()
+startBot_ period bot = void . startBot period bot
 
 -- | Get a 'Telegram.Token' from environment variable.
 --
