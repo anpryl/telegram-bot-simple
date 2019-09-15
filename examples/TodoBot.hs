@@ -128,7 +128,7 @@ removeItem item model = model
 run :: Token -> IO ()
 run token = do
   env <- defaultTelegramClientEnv token
-  startBot_ (conversationBot updateChatId todoBot3) env
+  startBot_ defaultPeriod (conversationBot updateChatId todoBot3) env
 
 main :: IO ()
 main = do

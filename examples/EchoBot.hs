@@ -38,7 +38,7 @@ handleAction action model = case action of
 run :: Token -> IO ()
 run token = do
   env <- defaultTelegramClientEnv token
-  startBot_ (conversationBot updateChatId echoBot) env
+  startBot_ defaultPeriod (conversationBot updateChatId echoBot) env
 
 main :: IO ()
 main = do
