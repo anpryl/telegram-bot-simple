@@ -35,7 +35,7 @@ parseUpdate :: UpdateParser a -> Update -> Maybe a
 parseUpdate = runUpdateParser
 
 text :: UpdateParser Text
-text = UpdateParser (updateMessage >=> messageText)
+text = UpdateParser (extractUpdateMessage >=> messageText)
 
 plainText :: UpdateParser Text
 plainText = do
