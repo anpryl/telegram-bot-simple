@@ -1,19 +1,19 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DataKinds        #-}
+{-# LANGUAGE DeriveGeneric    #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeOperators    #-}
 module Telegram.Bot.API.Methods where
 
-import Data.Aeson
-import Data.Proxy
-import Data.Text (Text)
-import GHC.Generics (Generic)
-import Servant.API
-import Servant.Client hiding (Response)
+import           Data.Aeson
+import           Data.Proxy
+import           Data.Text                       (Text)
+import           GHC.Generics                    (Generic)
+import           Servant.API
+import           Servant.Client                  hiding (Response)
 
-import Telegram.Bot.API.Internal.Utils
-import Telegram.Bot.API.MakingRequests
-import Telegram.Bot.API.Types
+import           Telegram.Bot.API.Internal.Utils
+import           Telegram.Bot.API.MakingRequests
+import           Telegram.Bot.API.Types
 
 -- * Available methods
 
@@ -26,6 +26,16 @@ type GetMe = "getMe" :> Get '[JSON] (Response User)
 -- Returns basic information about the bot in form of a 'User' object.
 getMe :: ClientM (Response User)
 getMe = client (Proxy @GetMe)
+
+-- ** 'getChatAdministrators'
+
+type GetChatAdministrators = "getChatAdministrators"
+    :> RequiredQueryParam "chat_id" ChatId
+    :> Get '[JSON] (Response [ChatMember])
+
+-- | Use this method to get list of chat administrators
+getChatAdministrators :: ChatId -> ClientM (Response [ChatMember])
+getChatAdministrators = client (Proxy @GetChatAdministrators)
 
 -- ** 'deleteMessage'
 
