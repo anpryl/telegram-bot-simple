@@ -12,6 +12,9 @@ import qualified Telegram.Bot.API     as Telegram
 deleteChatMessage :: ChatId -> MessageId -> BotM ()
 deleteChatMessage chatId = void . liftClientM . Telegram.deleteMessage chatId
 
+deleteChatMessageResponse :: ChatId -> MessageId -> BotM (Telegram.Response Bool)
+deleteChatMessageResponse chatId = liftClientM . Telegram.deleteMessage chatId
+
 -- | Delete message in the current chat (if possible).
 deleteMessage :: MessageId -> BotM ()
 deleteMessage msgId = do
