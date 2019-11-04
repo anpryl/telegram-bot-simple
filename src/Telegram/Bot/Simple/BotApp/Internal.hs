@@ -1,10 +1,10 @@
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE DeriveFunctor       #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
 module Telegram.Bot.Simple.BotApp.Internal where
 
 import           Control.Concurrent      (ThreadId, forkIO)
@@ -144,7 +144,7 @@ startBotPolling
     -> BotApp model action
     -> BotEnv model action -> ClientM ()
 startBotPolling period BotApp{..} botEnv@BotEnv{..} =
-    startPolling period handleUpdate `catchAny` (\(e :: SomeException) -> liftIO (print $ "GetUpdates failed: " <> ppShow e))
+    startPolling period handleUpdate `catchAny` (\e -> liftIO (print $ "GetUpdates failed: " <> ppShow e))
   where
     handleUpdate update = void . liftIO . forkIO $ do
       maction <- botAction update <$> readTVarIO botModelVar

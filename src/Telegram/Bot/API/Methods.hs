@@ -1,13 +1,19 @@
 {-# LANGUAGE DataKinds        #-}
+{-# LANGUAGE DeriveAnyClass   #-}
 {-# LANGUAGE DeriveGeneric    #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RecordWildCards  #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators    #-}
 module Telegram.Bot.API.Methods where
 
+import           Control.Exception.Safe
+import           Control.Monad.Error.Class
 import           Data.Aeson
 import           Data.Proxy
 import           Data.Text                       (Text)
 import           GHC.Generics                    (Generic)
+import           Network.HTTP.Types
 import           Servant.API
 import           Servant.Client                  hiding (Response)
 
@@ -55,12 +61,19 @@ deleteMessage = client (Proxy @DeleteMessage)
 type SendMessage
   = "sendMessage" :> ReqBody '[JSON] SendMessageRequest :> Post '[JSON] (Response Message)
 
+data ForbiddenChat = ForbiddenChat SomeChatId
+    deriving (Show, Exception)
+
 -- | Use this method to send text messages.
 -- On success, the sent 'Message' is returned.
 sendMessage :: SendMessageRequest -> ClientM (Response Message)
-sendMessage = client (Proxy @SendMessage)
-
--- ** 'forwardMessage'
+sendMessage req = client (Proxy @SendMessage) req `catchError` throwOn403
+  where
+    throwOn403 err@(FailureResponse res) = do
+        if responseStatusCode res == status403
+        then throwM . ForbiddenChat . sendMessageChatId $ req
+        else throwError err
+    throwOn403 err = throwError err
 
 type ForwardMessage
   = "forwardMessage" :> ReqBody '[JSON] ForwardMessageRequest :> Post '[JSON] (Response Message)
@@ -75,7 +88,7 @@ forwardMessage = client (Proxy @ForwardMessage)
 data SomeChatId
   = SomeChatId ChatId       -- ^ Unique chat ID.
   | SomeChatUsername Text   -- ^ Username of the target channel.
-  deriving (Generic)
+  deriving (Show, Generic)
 
 instance ToJSON   SomeChatId where toJSON = genericSomeToJSON
 instance FromJSON SomeChatId where parseJSON = genericSomeParseJSON

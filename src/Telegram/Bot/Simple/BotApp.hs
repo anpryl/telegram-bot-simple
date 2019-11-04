@@ -1,8 +1,8 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 module Telegram.Bot.Simple.BotApp (
   BotApp(..),
   BotJob(..),
@@ -17,9 +17,9 @@ module Telegram.Bot.Simple.BotApp (
   defaultPeriod,
 ) where
 
-import           Control.Monad                       (void)
 import           Control.Concurrent                  (ThreadId, killThread)
 import           Control.Exception.Safe
+import           Control.Monad                       (void)
 import           Data.String                         (fromString)
 import           ForkForever
 import           Servant.Client
@@ -42,7 +42,10 @@ startBotAsync
     -> ClientEnv
     -> IO (action -> IO ())
 startBotAsync period bot env = withBotEnv bot env $ \botEnv -> do
-  forkForever_ $ runClientM (startBotPolling period bot botEnv) env
+  forkForever_ $ do
+      err <- (runClientM (startBotPolling period bot botEnv) env)
+      print $ "Failed to start clientM: " <> show err
+      return ()
   return (issueAction botEnv Nothing)
 
 -- | Like 'startBotAsync', but ignores result.
@@ -51,7 +54,7 @@ startBotAsync_
     => Time unit
     -> BotApp model action
     -> ClientEnv -> IO ()
-startBotAsync_ period bot env = void (startBotAsync period bot env)
+startBotAsync_ period bot env = void $ startBotAsync period bot env
 
 -- | Start bot with update polling in the main thread.
 startBot

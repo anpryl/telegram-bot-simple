@@ -1,14 +1,14 @@
-{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DataKinds        #-}
 {-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeOperators    #-}
 module Telegram.Bot.API.Chat where
 
-import Data.Proxy
-import Servant.API
-import Servant.Client hiding (Response)
+import           Data.Proxy
+import           Servant.API
+import           Servant.Client                  hiding (Response)
 
-import Telegram.Bot.API.MakingRequests
-import Telegram.Bot.API.Types
+import           Telegram.Bot.API.MakingRequests
+import           Telegram.Bot.API.Types
 
 -- * Available methods
 
@@ -22,3 +22,11 @@ type KickChatMember = "kickChatMember"
 -- On success, the sent Bool is returned.
 kickChatMember :: ChatId -> UserId -> ClientM (Response Bool)
 kickChatMember = client (Proxy @KickChatMember)
+
+-- ** 'getChat'
+type GetChat = "getChat"
+  :> RequiredQueryParam "chat_id" ChatId
+  :> Get '[JSON] (Response Chat)
+
+getChat :: ChatId -> ClientM (Response Chat)
+getChat = client (Proxy @GetChat)

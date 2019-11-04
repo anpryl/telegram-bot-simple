@@ -29,6 +29,7 @@ dependencies:
 - http-api-data
 - http-client
 - http-client-tls
+- http-types
 - monad-control
 - mtl
 - pretty-show
