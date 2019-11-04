@@ -54,26 +54,19 @@ type DeleteMessage = "deleteMessage"
 -- | Use this method to delete message in chat.
 -- On success, the sent Bool is returned.
 deleteMessage :: ChatId -> MessageId -> ClientM (Response Bool)
-deleteMessage = client (Proxy @DeleteMessage)
+deleteMessage chatId msgId = client (Proxy @DeleteMessage) chatId msgId
+    `catchError` (throwOn403 $ SomeChatId chatId)
 
 -- ** 'sendMessage'
 
 type SendMessage
   = "sendMessage" :> ReqBody '[JSON] SendMessageRequest :> Post '[JSON] (Response Message)
 
-data ForbiddenChat = ForbiddenChat SomeChatId
-    deriving (Show, Exception)
-
 -- | Use this method to send text messages.
 -- On success, the sent 'Message' is returned.
 sendMessage :: SendMessageRequest -> ClientM (Response Message)
-sendMessage req = client (Proxy @SendMessage) req `catchError` throwOn403
-  where
-    throwOn403 err@(FailureResponse res) = do
-        if responseStatusCode res == status403
-        then throwM . ForbiddenChat . sendMessageChatId $ req
-        else throwError err
-    throwOn403 err = throwError err
+sendMessage req = client (Proxy @SendMessage) req
+    `catchError` (throwOn403 $ sendMessageChatId req)
 
 type ForwardMessage
   = "forwardMessage" :> ReqBody '[JSON] ForwardMessageRequest :> Post '[JSON] (Response Message)
@@ -81,7 +74,8 @@ type ForwardMessage
 -- | Use this method to forward messages of any kind.
 -- On success, the sent Message is returned.
 forwardMessage :: ForwardMessageRequest -> ClientM (Response Message)
-forwardMessage = client (Proxy @ForwardMessage)
+forwardMessage req = client (Proxy @ForwardMessage) req
+    `catchError` (throwOn403 $ forwardMessageChatId req)
 
 -- | Unique identifier for the target chat
 -- or username of the target channel (in the format @\@channelusername@).
@@ -137,3 +131,18 @@ data ForwardMessageRequest = ForwardMessageRequest
 
 instance ToJSON   ForwardMessageRequest where toJSON = gtoJSON
 instance FromJSON ForwardMessageRequest where parseJSON = gparseJSON
+
+
+data ForbiddenChat = ForbiddenChat SomeChatId
+    deriving (Show, Exception)
+
+throwOn403
+    :: (MonadError ServantError m, MonadThrow m)
+    => SomeChatId
+    -> ServantError
+    -> m a
+throwOn403 chatId err@(FailureResponse res) = do
+    if responseStatusCode res == status403
+    then throwM $ ForbiddenChat chatId
+    else throwError err
+throwOn403 _ err = throwError err
