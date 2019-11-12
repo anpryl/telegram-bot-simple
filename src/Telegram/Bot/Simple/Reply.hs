@@ -8,10 +8,10 @@ import           Data.String
 import           Data.Text               (Text)
 import           GHC.Generics            (Generic)
 
-import           Telegram.Bot.API hiding (forwardMessage, editMessageText)
+import           Telegram.Bot.API        hiding (editMessageText, forwardMessage)
 import           Telegram.Bot.Simple.Eff
 
-import qualified Telegram.Bot.API     as Telegram
+import qualified Telegram.Bot.API        as Telegram
 
 -- | Get current 'ChatId' if possible.
 currentChatId :: BotM (Maybe ChatId)
@@ -89,7 +89,7 @@ data EditMessage = EditMessage
   , editMessageParseMode             :: Maybe ParseMode
   , editMessageDisableWebPagePreview :: Maybe Bool
   , editMessageReplyMarkup           :: Maybe SomeReplyMarkup
-  }
+  } deriving (Show)
 
 instance IsString EditMessage where
   fromString = toEditMessage . fromString

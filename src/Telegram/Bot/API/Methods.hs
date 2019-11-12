@@ -75,7 +75,7 @@ forwardMessage = client (Proxy @ForwardMessage)
 data SomeChatId
   = SomeChatId ChatId       -- ^ Unique chat ID.
   | SomeChatUsername Text   -- ^ Username of the target channel.
-  deriving (Generic)
+  deriving (Show, Generic)
 
 instance ToJSON   SomeChatId where toJSON = genericSomeToJSON
 instance FromJSON SomeChatId where parseJSON = genericSomeParseJSON
@@ -88,7 +88,7 @@ data SomeReplyMarkup
   | SomeReplyKeyboardMarkup  ReplyKeyboardMarkup
   | SomeReplyKeyboardRemove  ReplyKeyboardRemove
   | SomeForceReply           ForceReply
-  deriving (Generic)
+  deriving (Show, Generic)
 
 instance ToJSON   SomeReplyMarkup where toJSON = genericSomeToJSON
 instance FromJSON SomeReplyMarkup where parseJSON = genericSomeParseJSON
@@ -96,7 +96,7 @@ instance FromJSON SomeReplyMarkup where parseJSON = genericSomeParseJSON
 data ParseMode
   = Markdown
   | HTML
-  deriving (Generic)
+  deriving (Show, Generic)
 
 instance ToJSON   ParseMode
 instance FromJSON ParseMode
