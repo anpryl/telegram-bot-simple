@@ -27,6 +27,16 @@ type GetMe = "getMe" :> Get '[JSON] (Response User)
 getMe :: ClientM (Response User)
 getMe = client (Proxy @GetMe)
 
+-- ** 'getChat'
+
+type GetChat = "getChat"
+    :> RequiredQueryParam "chat_id" ChatId
+    :> Get '[JSON] (Response Chat)
+
+-- | Use this method to get list of chat administrators
+getChat :: ChatId -> ClientM (Response Chat)
+getChat = client (Proxy @GetChat)
+
 -- ** 'getChatAdministrators'
 
 type GetChatAdministrators = "getChatAdministrators"
