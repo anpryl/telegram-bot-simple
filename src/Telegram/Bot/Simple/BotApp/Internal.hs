@@ -8,6 +8,7 @@
 module Telegram.Bot.Simple.BotApp.Internal where
 
 import           Control.Concurrent      (ThreadId, forkIO)
+import           Control.Monad.Error.Class
 import           Control.Concurrent.STM
 import           Control.Exception.Safe
 import           Control.Monad           (void)
@@ -121,9 +122,12 @@ processAction BotApp{..} botEnv@BotEnv{..} update action = do
     runBot act = runBotM botCtx $ do
       fmap Just act
         `catches` (fmap Just <$> botErrorHandlers)
-        `catchAny` \err -> do
+        `catchError` (\err -> do
+            liftIO $ print $ ("Unhandled servant error: " <> ppShow err)
+            return Nothing)
+        `catchAny` (\err -> do
           liftIO (print $ "Action error: " <>  ppShow err)
-          return Nothing
+          return Nothing)
 
 -- | A job to wait for the next action and process it.
 processActionJob :: BotApp model action -> BotEnv model action -> ClientM ()
