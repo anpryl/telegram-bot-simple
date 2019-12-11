@@ -1,27 +1,27 @@
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE DeriveFunctor       #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
 module Telegram.Bot.Simple.BotApp.Internal where
 
-import           Control.Concurrent      (ThreadId, forkIO)
-import           Control.Monad.Error.Class
+import           Control.Concurrent        (ThreadId, forkIO)
 import           Control.Concurrent.STM
 import           Control.Exception.Safe
-import           Control.Monad           (void)
-import           Control.Monad.Trans     (liftIO)
-import           Data.Bifunctor          (first)
-import           Data.Text               (Text)
+import           Control.Monad             (void)
+import           Control.Monad.Error.Class
+import           Control.Monad.Trans       (liftIO)
+import           Data.Bifunctor            (first)
+import           Data.Text                 (Text)
 import           ForkForever
-import           Servant.Client          (ClientEnv, ClientM, runClientM)
-import qualified System.Cron             as Cron
-import           Text.Show.Pretty        (ppShow)
+import           Servant.Client            (ClientEnv, ClientM, runClientM)
+import qualified System.Cron               as Cron
+import           Text.Show.Pretty          (ppShow)
 import           Time
 
-import qualified Telegram.Bot.API        as Telegram
+import qualified Telegram.Bot.API          as Telegram
 import           Telegram.Bot.Simple.Eff
 
 -- | A bot application.
@@ -122,9 +122,7 @@ processAction BotApp{..} botEnv@BotEnv{..} update action = do
     runBot act = runBotM botCtx $ do
       fmap Just act
         `catches` (fmap Just <$> botErrorHandlers)
-        `catchError` (\err -> do
-            liftIO $ print $ ("Unhandled servant error: " <> ppShow err)
-            return Nothing)
+        `catchError` throw
         `catchAny` (\err -> do
           liftIO (print $ "Action error: " <>  ppShow err)
           return Nothing)
