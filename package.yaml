@@ -22,6 +22,7 @@ description:         Please see the README on Github at <https://github.com/fizr
 dependencies:
 - aeson
 - aeson-pretty
+- async
 - base >= 4.9 && <5
 - bytestring
 - cron
