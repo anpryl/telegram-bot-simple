@@ -1,33 +1,31 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-module Telegram.Bot.Simple.BotApp (
-  BotApp(..),
-  BotJob(..),
+{-# LANGUAGE TypeApplications #-}
 
-  startBot,
-  startBot_,
+module Telegram.Bot.Simple.BotApp
+  ( BotApp (..),
+    BotJob (..),
+    startBot,
+    startBot_,
+    startBotAsync,
+    startBotAsync_,
+    getEnvToken,
+    defaultPeriod,
+  )
+where
 
-  startBotAsync,
-  startBotAsync_,
-
-  getEnvToken,
-  defaultPeriod,
-) where
-
-import           Control.Monad                       (void)
-import           Control.Concurrent                  (ThreadId, killThread)
-import           Control.Exception.Safe
-import           Data.String                         (fromString)
-import           ForkForever
-import           Servant.Client
-import           System.Environment                  (getEnv)
-import           Time
-
-import qualified Telegram.Bot.API                    as Telegram
-import           Telegram.Bot.Simple.BotApp.Internal
+import Control.Concurrent (ThreadId, killThread)
+import Control.Exception.Safe
+import Control.Monad (void)
+import Data.String (fromString)
+import ForkForever
+import Servant.Client
+import System.Environment (getEnv)
+import qualified Telegram.Bot.API as Telegram
+import Telegram.Bot.Simple.BotApp.Internal
+import Time
 
 defaultPeriod :: Time Second
 defaultPeriod = Time @Second 10
@@ -35,41 +33,46 @@ defaultPeriod = Time @Second 10
 -- | Start bot with asynchronous polling.
 -- The result is a function that allows you to send actions
 -- directly to the bot.
-startBotAsync
-    :: forall (unit :: Rat) model action . (KnownDivRat unit Microsecond)
-    => Time unit
-    -> BotApp model action
-    -> ClientEnv
-    -> IO (action -> IO ())
+startBotAsync ::
+  forall (unit :: Rat) model action.
+  (KnownDivRat unit Microsecond) =>
+  Time unit ->
+  BotApp model action ->
+  ClientEnv ->
+  IO (action -> IO ())
 startBotAsync period bot env = withBotEnv bot env $ \botEnv -> do
   forkForever_ $ runClientM (startBotPolling period bot botEnv) env
   return (issueAction botEnv Nothing)
 
 -- | Like 'startBotAsync', but ignores result.
-startBotAsync_
-    :: forall (unit :: Rat) model action . (KnownDivRat unit Microsecond)
-    => Time unit
-    -> BotApp model action
-    -> ClientEnv -> IO ()
+startBotAsync_ ::
+  forall (unit :: Rat) model action.
+  (KnownDivRat unit Microsecond) =>
+  Time unit ->
+  BotApp model action ->
+  ClientEnv ->
+  IO ()
 startBotAsync_ period bot env = void (startBotAsync period bot env)
 
 -- | Start bot with update polling in the main thread.
-startBot
-    :: forall (unit :: Rat) model action . (KnownDivRat unit Microsecond)
-    => Time unit
-    -> BotApp model action
-    -> ClientEnv
-    -> IO (Either ServantError ())
-startBot period bot env = withBotEnv bot env $ \botEnv -> do
+startBot ::
+  forall (unit :: Rat) model action.
+  (KnownDivRat unit Microsecond) =>
+  Time unit ->
+  BotApp model action ->
+  ClientEnv ->
+  IO (Either ServantError ())
+startBot period bot env = withBotEnv bot env $ \botEnv ->
   runClientM (startBotPolling period bot botEnv) env
 
 -- | Like 'startBot', but ignores result.
-startBot_
-    :: forall (unit :: Rat) model action . (KnownDivRat unit Microsecond)
-    => Time unit
-    -> BotApp model action
-    -> ClientEnv
-    -> IO ()
+startBot_ ::
+  forall (unit :: Rat) model action.
+  (KnownDivRat unit Microsecond) =>
+  Time unit ->
+  BotApp model action ->
+  ClientEnv ->
+  IO ()
 startBot_ period bot = void . startBot period bot
 
 -- | Get a 'Telegram.Token' from environment variable.

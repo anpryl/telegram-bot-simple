@@ -1,12 +1,10 @@
 module Telegram.Bot.Simple.Delete where
 
-import           Control.Monad.Reader
-
-import           Telegram.Bot.API (ChatId, MessageId, messageMessageId)
-import           Telegram.Bot.Simple.Eff
-import           Telegram.Bot.Simple.Reply
-
-import qualified Telegram.Bot.API     as Telegram
+import Control.Monad.Reader
+import Telegram.Bot.API (ChatId, MessageId, messageMessageId)
+import qualified Telegram.Bot.API as Telegram
+import Telegram.Bot.Simple.Eff
+import Telegram.Bot.Simple.Reply
 
 -- | Delete message from chat
 deleteChatMessage :: ChatId -> MessageId -> BotM ()
@@ -21,7 +19,7 @@ deleteMessage msgId = do
   mchatId <- currentChatId
   case mchatId of
     Just chatId -> deleteChatMessage chatId msgId
-    Nothing     -> liftIO $ putStrLn "No chat to delete message"
+    Nothing -> liftIO $ putStrLn "No chat to delete message"
 
 -- | Delete current update message from current chat (if possible).
 deleteUpdateMessage :: BotM ()

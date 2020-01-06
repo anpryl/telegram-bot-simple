@@ -1,26 +1,27 @@
-{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Telegram.Bot.Simple.Eff where
 
-import           Control.Exception.Safe
-import           Control.Monad.Error.Class
-import           Control.Monad.Reader
-import           Control.Monad.Writer
-import           Data.Bifunctor
-import           Servant.Client
-
-import qualified Telegram.Bot.API          as Telegram
+import Control.Exception.Safe
+import Control.Monad.Error.Class
+import Control.Monad.Reader
+import Control.Monad.Writer
+import Data.Bifunctor
+import Servant.Client
+import qualified Telegram.Bot.API as Telegram
 
 -- | Bot handler context.
 --
 -- The context may include an 'Update' the bot is handling at the moment.
-newtype BotM a = BotM { _runBotM :: ReaderT BotContext ClientM a }
+newtype BotM a = BotM {_runBotM :: ReaderT BotContext ClientM a}
   deriving (Functor, Applicative, Monad, MonadReader BotContext, MonadIO, MonadThrow, MonadCatch, MonadError ServantError)
 
-data BotContext = BotContext
-  { botContextUser   :: Telegram.User
-  , botContextUpdate :: Maybe Telegram.Update
-  }
+data BotContext
+  = BotContext
+      { botContextUser :: Telegram.User,
+        botContextUpdate :: Maybe Telegram.Update
+      }
 
 liftClientM :: ClientM a -> BotM a
 liftClientM = BotM . lift
@@ -28,7 +29,7 @@ liftClientM = BotM . lift
 runBotM :: BotContext -> BotM a -> ClientM a
 runBotM update = flip runReaderT update . _runBotM
 
-newtype Eff action model = Eff { _runEff :: Writer [BotM action] model }
+newtype Eff action model = Eff {_runEff :: Writer [BotM action] model}
   deriving (Functor, Applicative, Monad)
 
 instance Bifunctor Eff where
@@ -50,7 +51,7 @@ withEffect effect model = eff effect >> pure model
 setBotMUpdate :: Maybe Telegram.Update -> BotM a -> BotM a
 setBotMUpdate update (BotM m) = BotM (local f m)
   where
-    f botContext = botContext { botContextUpdate = update }
+    f botContext = botContext {botContextUpdate = update}
 
 -- | Set a specific 'Telegram.Update' in every effect of 'Eff' context.
 setEffUpdate :: Maybe Telegram.Update -> Eff action model -> Eff action model
