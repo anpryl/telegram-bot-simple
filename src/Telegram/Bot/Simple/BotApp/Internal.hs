@@ -9,7 +9,7 @@ module Telegram.Bot.Simple.BotApp.Internal where
 import Control.Concurrent (ThreadId, forkIO)
 import Control.Concurrent.STM
 import Control.Exception.Safe
-import Control.Monad (void)
+import Control.Monad (forM_, void)
 import Control.Monad.Error.Class
 import Control.Monad.Trans (liftIO)
 import Data.Bifunctor (first)
@@ -162,7 +162,7 @@ startBotPolling period BotApp {..} botEnv@BotEnv {..} =
   where
     handleUpdate update = void . liftIO . forkIO $ do
       maction <- botAction update <$> readTVarIO botModelVar
-      forM_ issueAction botEnv (Just update) action
+      forM_ maction (issueAction botEnv (Just update))
 
 -- | Start 'Telegram.Update' polling with a given update handler.
 startPolling ::

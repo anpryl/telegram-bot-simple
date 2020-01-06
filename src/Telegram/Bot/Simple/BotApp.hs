@@ -61,7 +61,7 @@ startBot ::
   Time unit ->
   BotApp model action ->
   ClientEnv ->
-  IO (Either ServantError ())
+  IO (Either ClientError ())
 startBot period bot env = withBotEnv bot env $ \botEnv ->
   runClientM (startBotPolling period bot botEnv) env
 

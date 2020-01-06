@@ -2,6 +2,7 @@ module ForkForever where
 
 import Control.Concurrent (ThreadId, forkIO)
 import Control.Concurrent.Async (waitCatch, withAsync)
+import Control.Monad
 import Data.Function (fix)
 
 forkForever_ :: IO a -> IO ()
