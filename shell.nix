@@ -84,14 +84,12 @@ let
   ghcVersion = "ghc865";
   hpkgs = pkgs.haskell.packages.${ghcVersion};
 
-  projectDrv = (
-    hpkgs.override {
-      overrides = hpkgsNew: hpkgsOld: with pkgs.haskell.lib; {
-        telegram-bot-simple = hpkgsNew.callCabal2nix "telegram-bot-simple" src {};
-        cron = dontCheck hpkgsOld.cron;
-      };
-    }
-  );
+  projectDrv = hpkgs.override {
+    overrides = hpkgsNew: hpkgsOld: with pkgs.haskell.lib; {
+      telegram-bot-simple = hpkgsNew.callCabal2nix "telegram-bot-simple" src {};
+      cron = dontCheck hpkgsOld.cron;
+    };
+  };
 
   projectShell = projectDrv.shellFor {
     packages = p: [ p.telegram-bot-simple ];
