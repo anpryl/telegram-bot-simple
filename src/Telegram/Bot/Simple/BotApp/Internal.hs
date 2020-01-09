@@ -16,6 +16,7 @@ import Data.Bifunctor (first)
 import Data.Text (Text)
 import ForkForever
 import Servant.Client (ClientEnv, ClientM, runClientM)
+import ServantClient
 import qualified System.Cron as Cron
 import qualified Telegram.Bot.API as Telegram
 import Telegram.Bot.Simple.Eff
@@ -98,7 +99,7 @@ defaultBotEnv BotApp {..} env =
     <$> newTVarIO botInitialModel
     <*> newTQueueIO
     <*> pure env
-    <*> (either (error . show) Telegram.responseResult <$> runClientM Telegram.getMe env)
+    <*> (Telegram.responseResult <$> runClientWithException Telegram.getMe env)
 
 -- | Issue a new action for the bot to process.
 issueAction :: BotEnv model action -> Maybe Telegram.Update -> action -> IO ()
