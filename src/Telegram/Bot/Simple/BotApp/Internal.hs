@@ -146,9 +146,8 @@ processActionJob botApp botEnv@BotEnv {..} = do
 processActionsIndefinitely ::
   BotApp model action -> BotEnv model action -> IO ThreadId
 processActionsIndefinitely botApp botEnv =
-  forkForever
-    $ void
-    $ runClientM (processActionJob botApp botEnv) (botClientEnv botEnv)
+  forkForeverWithName "processActionsIndefinitely" $
+    runClientWithException (processActionJob botApp botEnv) (botClientEnv botEnv)
 
 -- | Start 'Telegram.Update' polling for a bot.
 startBotPolling ::
