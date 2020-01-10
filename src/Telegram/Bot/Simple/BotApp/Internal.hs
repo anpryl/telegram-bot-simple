@@ -131,10 +131,9 @@ processAction BotApp {..} botEnv@BotEnv {..} update action = do
         fmap Just act
           `catches` (fmap Just <$> botErrorHandlers)
           `catchError` throw
-          `catchAny` ( \err -> do
-                         liftIO (print $ "Action error: " <> ppShow err)
-                         return Nothing
-                     )
+          `catchAny` \err -> do
+            liftIO (print $ "Action error: " <> ppShow err)
+            return Nothing
 
 -- | A job to wait for the next action and process it.
 processActionJob :: BotApp model action -> BotEnv model action -> ClientM ()
@@ -158,7 +157,7 @@ startBotPolling ::
   BotEnv model action ->
   ClientM ()
 startBotPolling period BotApp {..} botEnv@BotEnv {..} =
-  startPolling period handleUpdate `catchAny` (\(e :: SomeException) -> liftIO (print $ "GetUpdates failed: " <> ppShow e))
+  startPolling period handleUpdate
   where
     handleUpdate update = void . liftIO . forkIO $ do
       maction <- botAction update <$> readTVarIO botModelVar
