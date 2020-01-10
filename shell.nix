@@ -16,7 +16,16 @@ let
       rev = "dcd0b0e878009ef7b1425f8ca3e5b883f12459d8";
       sha256 = "sha256:0ni9hl6j4l94mfwsdmrg5l0ffibfgd8amspda7vc5fb3wm8blxpy";
     };
-  inherit (import gitignore-src { inherit (pkgs) lib; }) gitignoreSource;
+  gitignore-drv = import gitignore-src { inherit (pkgs) lib; };
+  gitignoreSource = gitignore-drv.gitignoreSource;
+
+  ormolu-src = pkgs.fetchFromGitHub {
+    owner = "tweag";
+    repo = "ormolu";
+    rev = "4e253c9eb2d21ce154230cb3b79e61a47650c3e2";
+    sha256 = "09qywsxlb8gcn06vjzphq1k4syx1pl6bg2rrp6aw9vp1xv73d28r";
+  };
+  ormolu-drv = import ormolu-src { inherit pkgs; };
 
   src = gitignoreSource ./.;
 
@@ -79,6 +88,10 @@ let
           ormolu.enable = true;
           shellcheck.enable = true;
         };
+      tools =
+        {
+          ormolu = ormolu-drv.ormolu;
+        };
     };
 
   ghcVersion = "ghc865";
@@ -93,7 +106,7 @@ let
 
   projectShell = projectDrv.shellFor {
     packages = p: [ p.telegram-bot-simple ];
-    buildInputs = with pkgs; [ projectDrv.ghcid gmp zlib ];
+    buildInputs = with pkgs; [ projectDrv.ghcid gmp zlib ormolu-drv.ormolu ];
     shellHook = pre-commit-check.shellHook;
   };
 in
