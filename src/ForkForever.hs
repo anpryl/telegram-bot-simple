@@ -15,7 +15,7 @@ forkForeverWithName name act = forkIO $ fix $ \next -> do
       print . unwords . (["Thread", name, "died:"] <>) . one . show
 
 forkForeverWithName_ :: String -> IO a -> IO ()
-forkForeverWithName_ name = void . forkForeverWithName_ name
+forkForeverWithName_ name = void . forkForeverWithName name
 
 forkForever :: IO a -> IO ThreadId
 forkForever = forkForeverWithName mempty
