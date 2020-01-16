@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7ccce7cf0b75a952b06b69f3f13a47ddf87268472ee2ce61584bd21f0270fb22
+-- hash: 6f03bb5fa53b50ad34ba683670e53e3df4852df330f69d0c2d558a746a69aca0
 
 name:           telegram-bot-simple
 version:        0.2.0
@@ -30,6 +30,7 @@ source-repository head
 library
   exposed-modules:
       ForkForever
+      ServantClient
       Telegram.Bot.API
       Telegram.Bot.API.Chat
       Telegram.Bot.API.Games

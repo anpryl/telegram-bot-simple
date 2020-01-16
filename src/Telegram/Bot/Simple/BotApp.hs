@@ -42,8 +42,12 @@ startBotAsync ::
   ClientEnv ->
   IO (action -> IO ())
 startBotAsync period bot env = withBotEnv bot env $ \botEnv -> do
-  forkForeverWithName_ "startBotAsync" $ runClientWithException (startBotPolling period bot botEnv) env
+  forkForeverWithName_ forkName (runClient botEnv) forkErrorHandler
   return (issueAction botEnv Nothing)
+  where
+    forkName = "startBotAsync"
+    runClient botEnv = runClientWithException (startBotPolling period bot botEnv) env
+    forkErrorHandler = botForkErrorHandler bot
 
 -- | Like 'startBotAsync', but ignores result.
 startBotAsync_ ::

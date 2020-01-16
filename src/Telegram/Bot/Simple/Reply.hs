@@ -28,8 +28,8 @@ updateEditMessageId update =
   EditInlineMessageId
     <$> (callbackQueryInlineMessageId =<< updateCallbackQuery update)
     <|> EditChatMessageId
-      <$> (SomeChatId . chatId . messageChat <$> message)
-        <*> (messageMessageId <$> message)
+    <$> (SomeChatId . chatId . messageChat <$> message)
+      <*> (messageMessageId <$> message)
   where
     message = extractUpdateMessage update
 

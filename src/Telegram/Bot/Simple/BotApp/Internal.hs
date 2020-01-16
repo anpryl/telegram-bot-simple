@@ -35,7 +35,10 @@ data BotApp model action
         botHandler :: action -> model -> Eff action model,
         -- | Background bot jobs.
         botJobs :: [BotJob model action],
-        botErrorHandlers :: [Handler BotM action]
+        -- | Handlers for exceptions
+        botErrorHandlers :: [Handler BotM action],
+        -- | Exception handler on errors on forks
+        botForkErrorHandler :: ForkExceptionHandler
       }
 
 -- | A background bot job.
@@ -129,8 +132,8 @@ processAction BotApp {..} botEnv@BotEnv {..} update action = do
     runBot act =
       runBotM botCtx $
         fmap Just act
-          `catches` (fmap Just <$> botErrorHandlers)
           `catchError` throw
+          `catches` (fmap Just <$> botErrorHandlers)
           `catchAny` \err -> do
             liftIO (print $ "Action error: " <> ppShow err)
             return Nothing
@@ -145,8 +148,11 @@ processActionJob botApp botEnv@BotEnv {..} = do
 processActionsIndefinitely ::
   BotApp model action -> BotEnv model action -> IO ThreadId
 processActionsIndefinitely botApp botEnv =
-  forkForeverWithName "processActionsIndefinitely" $
-    runClientWithException (processActionJob botApp botEnv) (botClientEnv botEnv)
+  forkForeverWithName forkName runClient forkErrorHandler
+  where
+    forkName = "processActionsIndefinitely"
+    runClient = runClientWithException (processActionJob botApp botEnv) (botClientEnv botEnv)
+    forkErrorHandler = botForkErrorHandler botApp
 
 -- | Start 'Telegram.Update' polling for a bot.
 startBotPolling ::
