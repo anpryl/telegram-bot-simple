@@ -15,9 +15,10 @@ forkForeverWithName name act mhandler = forkIO $ fix $ \next -> do
   withAsync act (waitCatch >=> either handleExceptions (const $ pure ()))
   next
   where
-    handleExceptions e =
+    handleExceptions e = do
+      printMsgOnException e
       case mhandler of
-        Nothing -> printMsgOnException e
+        Nothing -> pure ()
         Just handler -> handler name e `catchAsync` printMsgOnException
     one x = [x]
     printMsgOnException =
