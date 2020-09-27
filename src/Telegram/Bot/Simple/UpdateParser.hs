@@ -4,6 +4,7 @@
 module Telegram.Bot.Simple.UpdateParser where
 
 import Control.Applicative
+import Control.Monad.Fail
 import Control.Monad.Reader
 import Data.Monoid ((<>))
 import Data.Text (Text)
@@ -35,6 +36,7 @@ instance Monad UpdateParser where
 
   UpdateParser x >>= f = UpdateParser (\u -> x u >>= flip runUpdateParser u . f)
 
+instance MonadFail UpdateParser where
   fail _ = empty
 
 mkParser :: (Update -> Maybe a) -> UpdateParser a
