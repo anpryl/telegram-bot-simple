@@ -1,13 +1,17 @@
 let
-  importNixPkgs = rev:
-    import (fetchNixPkgs rev) {
+  importNixpkgs = rev:
+    import (fetchNixpkgs rev) {
       config.allowBroken = true;
     };
 
-  fetchNixPkgs = rev:
+  fetchNixpkgs = rev:
     builtins.fetchTarball "https://github.com/NixOS/nixpkgs/archive/${rev}.tar.gz";
 
-  pkgs = importNixPkgs "0fb7ae83ade88abd3af3f6969796909499b2bc2a";
+  pkgs = importNixpkgs "93498b15264bb796d4ff3a08971b96847cdd9391";
+
+  ghcVersion = "ghc8103";
+
+  hpkgs = pkgs.haskell.packages.${ghcVersion};
 
   gitignore-src =
     pkgs.fetchFromGitHub {
@@ -19,18 +23,30 @@ let
   gitignore-drv = import gitignore-src { inherit (pkgs) lib; };
   gitignoreSource = gitignore-drv.gitignoreSource;
 
-  ormolu-src = pkgs.fetchFromGitHub {
-    owner = "tweag";
-    repo = "ormolu";
-    rev = "4e253c9eb2d21ce154230cb3b79e61a47650c3e2";
-    sha256 = "09qywsxlb8gcn06vjzphq1k4syx1pl6bg2rrp6aw9vp1xv73d28r";
+  fourmolu-src = pkgs.fetchFromGitHub {
+    owner = "parsonsmatt";
+    repo = "fourmolu";
+    rev = "f4e3b56d644b9bbf1eedee72616475028ea6e15a";
+    sha256 = "1r8qjdmcr2wk5ycvik02wn8ip3021zw4whaxcyz2pj8y190za7fn";
   };
-  ormolu-drv = import ormolu-src { inherit pkgs; };
+
+  fourmolu = hpkgs.callCabal2nix "fourmolu" fourmolu-src {};
+
+  ormoluAlias = (
+    pkgs.writeScriptBin "ormolu" ''
+      #!${pkgs.stdenv.shell}
+      ${fourmolu}/bin/fourmolu $@ 2> /dev/null
+    ''
+  );
 
   src = gitignoreSource ./.;
 
-  nix-pre-commit-hooks-src =
-    builtins.fetchTarball "https://github.com/hercules-ci/nix-pre-commit-hooks/archive/c28ce2cd8a8ce1b4e2761f61da10dd79cbd5b8aa.tar.gz";
+  nix-pre-commit-hooks-src = pkgs.fetchFromGitHub {
+    owner = "anpryl";
+    repo = "pre-commit-hooks.nix";
+    rev = "9d19a769e15a361a408ab3e9cb1449a7c3fb2281";
+    sha256 = "1dcvwq4icmnbnz1nk93xc86gwaprcbnzml4smfyldjr0flpg8lcz";
+  };
   nix-pre-commit-hooks = import nix-pre-commit-hooks-src;
   pre-commit-check =
     nix-pre-commit-hooks.run {
@@ -90,12 +106,9 @@ let
         };
       tools =
         {
-          ormolu = ormolu-drv.ormolu;
+          ormolu = ormoluAlias;
         };
     };
-
-  ghcVersion = "ghc865";
-  hpkgs = pkgs.haskell.packages.${ghcVersion};
 
   projectDrv = hpkgs.override {
     overrides = hpkgsNew: hpkgsOld: with pkgs.haskell.lib; {
@@ -106,7 +119,7 @@ let
 
   projectShell = projectDrv.shellFor {
     packages = p: [ p.telegram-bot-simple ];
-    buildInputs = with pkgs; [ projectDrv.ghcid gmp zlib ormolu-drv.ormolu ];
+    buildInputs = with pkgs; [ projectDrv.ghcid gmp zlib ormoluAlias ];
     shellHook = pre-commit-check.shellHook;
   };
 in
