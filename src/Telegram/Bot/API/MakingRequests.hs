@@ -15,44 +15,42 @@ import Network.HTTP.Client.TLS (tlsManagerSettings)
 import Servant.Client hiding (Response)
 import Telegram.Bot.API.Internal.Utils
 import Telegram.Bot.API.Types
-import Web.HttpApiData
-  ( FromHttpApiData,
+import Web.HttpApiData (
+    FromHttpApiData,
     ToHttpApiData (..),
-  )
+ )
 
 botBaseUrl :: Token -> BaseUrl
 botBaseUrl token =
-  BaseUrl
-    Https
-    "api.telegram.org"
-    443
-    (Text.unpack ("/bot" <> toUrlPiece token))
+    BaseUrl
+        Https
+        "api.telegram.org"
+        443
+        (Text.unpack ("/bot" <> toUrlPiece token))
 
 defaultTelegramClientEnv :: Token -> IO ClientEnv
 defaultTelegramClientEnv token =
-  ClientEnv
-    <$> newManager tlsManagerSettings
-    <*> pure (botBaseUrl token)
-    <*> pure Nothing
+    ClientEnv
+        <$> newManager tlsManagerSettings
+        <*> pure (botBaseUrl token)
 
 defaultRunBot :: Token -> ClientM a -> IO (Either ClientError a)
 defaultRunBot token bot = do
-  env <- defaultTelegramClientEnv token
-  runClientM bot env
+    env <- defaultTelegramClientEnv token
+    runClientM bot env
 
-data Response a
-  = Response
-      { responseOk :: Bool,
-        responseDescription :: Maybe Text,
-        responseResult :: a,
-        responseErrorCode :: Maybe Integer,
-        responseParameters :: Maybe ResponseParameters
-      }
-  deriving (Show, Generic)
+data Response a = Response
+    { responseOk :: Bool
+    , responseDescription :: Maybe Text
+    , responseResult :: a
+    , responseErrorCode :: Maybe Integer
+    , responseParameters :: Maybe ResponseParameters
+    }
+    deriving (Show, Generic)
 
 instance ToJSON a => ToJSON (Response a) where toJSON = gtoJSON
 
 instance FromJSON a => FromJSON (Response a) where parseJSON = gparseJSON
 
 newtype Token = Token Text
-  deriving (Eq, Show, ToHttpApiData, FromHttpApiData, ToJSON, FromJSON, IsString)
+    deriving (Eq, Show, ToHttpApiData, FromHttpApiData, ToJSON, FromJSON, IsString)

@@ -11,18 +11,19 @@ type ForkName = String
 type ForkExceptionHandler = Maybe (ForkName -> SomeException -> IO ())
 
 forkForeverWithName :: ForkName -> IO a -> ForkExceptionHandler -> IO ThreadId
-forkForeverWithName name act mhandler = forkIO $ fix $ \next -> do
-  withAsync act (waitCatch >=> either handleExceptions (const $ pure ()))
-  next
+forkForeverWithName name act mhandler = forkIO $
+    fix $ \next -> do
+        withAsync act (waitCatch >=> either handleExceptions (const $ pure ()))
+        next
   where
     handleExceptions e = do
-      printMsgOnException e
-      case mhandler of
-        Nothing -> pure ()
-        Just handler -> handler name e `catchAsync` printMsgOnException
+        printMsgOnException e
+        case mhandler of
+            Nothing -> pure ()
+            Just handler -> handler name e `catchAsync` printMsgOnException
     one x = [x]
     printMsgOnException =
-      print . unwords . (["Thread", name, "died:"] <>) . one . show
+        print . unwords . (["Thread", name, "died:"] <>) . one . show
 
 forkForeverWithName_ :: ForkName -> IO a -> ForkExceptionHandler -> IO ()
 forkForeverWithName_ name act = void . forkForeverWithName name act

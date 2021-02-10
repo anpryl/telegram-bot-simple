@@ -16,16 +16,16 @@ deleteChatMessageResponse chatId = liftClientM . Telegram.deleteMessage chatId
 -- | Delete message in the current chat (if possible).
 deleteMessage :: MessageId -> BotM ()
 deleteMessage msgId = do
-  mchatId <- currentChatId
-  case mchatId of
-    Just chatId -> deleteChatMessage chatId msgId
-    Nothing -> liftIO $ putStrLn "No chat to delete message"
+    mchatId <- currentChatId
+    case mchatId of
+        Just chatId -> deleteChatMessage chatId msgId
+        Nothing -> liftIO $ putStrLn "No chat to delete message"
 
 -- | Delete current update message from current chat (if possible).
 deleteUpdateMessage :: BotM ()
 deleteUpdateMessage = do
-  mupdate <- asks botContextUpdate
-  let mmsgId = fmap messageMessageId . Telegram.extractUpdateMessage =<< mupdate
-  case mmsgId of
-    Just msgId -> deleteMessage msgId
-    Nothing -> liftIO $ putStrLn "No message to delete"
+    mupdate <- asks botContextUpdate
+    let mmsgId = fmap messageMessageId . Telegram.extractUpdateMessage =<< mupdate
+    case mmsgId of
+        Just msgId -> deleteMessage msgId
+        Nothing -> liftIO $ putStrLn "No message to delete"

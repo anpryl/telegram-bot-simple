@@ -1,5 +1,5 @@
-module Telegram.Bot.API
-  ( -- * Making requests
+module Telegram.Bot.API (
+    -- * Making requests
     module Telegram.Bot.API.MakingRequests,
 
     -- * Getting updates
@@ -13,8 +13,7 @@ module Telegram.Bot.API
 
     -- * Updating messages
     module Telegram.Bot.API.UpdatingMessages,
-  )
-where
+) where
 
 --   -- * Stickers
 --   module Telegram.Bot.API.Stickers,

@@ -15,12 +15,13 @@ import Telegram.Bot.API.Types
 -- ** 'kickChatMember'
 
 type KickChatMember =
-  "kickChatMember"
-    :> RequiredQueryParam "chat_id" ChatId
-    :> RequiredQueryParam "user_id" UserId
-    :> Get '[JSON] (Response Bool)
+    "kickChatMember"
+        :> RequiredQueryParam "chat_id" ChatId
+        :> RequiredQueryParam "user_id" UserId
+        :> Get '[JSON] (Response Bool)
 
--- | Use this method to kick user from chat.
--- On success, the sent Bool is returned.
+{- | Use this method to kick user from chat.
+ On success, the sent Bool is returned.
+-}
 kickChatMember :: ChatId -> UserId -> ClientM (Response Bool)
 kickChatMember = client (Proxy @KickChatMember)

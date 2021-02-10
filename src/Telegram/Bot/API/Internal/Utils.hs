@@ -20,17 +20,17 @@ deriveJSON' :: Name -> Q [Dec]
 deriveJSON' name = deriveJSON (jsonOptions (nameBase name)) name
 
 gtoJSON ::
-  forall a d f.
-  (Generic a, GToJSON Zero (Rep a), Rep a ~ D1 d f, Datatype d) =>
-  a ->
-  Value
+    forall a d f.
+    (Generic a, GToJSON Zero (Rep a), Rep a ~ D1 d f, Datatype d) =>
+    a ->
+    Value
 gtoJSON = genericToJSON (jsonOptions (datatypeName (Proxy3 :: Proxy3 d f a)))
 
 gparseJSON ::
-  forall a d f.
-  (Generic a, GFromJSON Zero (Rep a), Rep a ~ D1 d f, Datatype d) =>
-  Value ->
-  Parser a
+    forall a d f.
+    (Generic a, GFromJSON Zero (Rep a), Rep a ~ D1 d f, Datatype d) =>
+    Value ->
+    Parser a
 gparseJSON = genericParseJSON (jsonOptions (datatypeName (Proxy3 :: Proxy3 d f a)))
 
 genericSomeToJSON :: (Generic a, GSomeJSON (Rep a)) => a -> Value
@@ -43,11 +43,11 @@ data Proxy3 d f a = Proxy3
 
 jsonOptions :: String -> Options
 jsonOptions tname =
-  defaultOptions
-    { fieldLabelModifier = snakeFieldModifier tname,
-      constructorTagModifier = snakeFieldModifier tname,
-      omitNothingFields = True
-    }
+    defaultOptions
+        { fieldLabelModifier = snakeFieldModifier tname
+        , constructorTagModifier = snakeFieldModifier tname
+        , omitNothingFields = True
+        }
 
 snakeFieldModifier :: String -> String -> String
 snakeFieldModifier xs ys = wordsToSnake (stripCommonPrefixWords xs ys)
@@ -55,9 +55,9 @@ snakeFieldModifier xs ys = wordsToSnake (stripCommonPrefixWords xs ys)
 camelWords :: String -> [String]
 camelWords "" = []
 camelWords s =
-  case us of
-    (_ : _ : _) -> us : camelWords restLs
-    _ -> (us ++ ls) : camelWords rest
+    case us of
+        (_ : _ : _) -> us : camelWords restLs
+        _ -> (us ++ ls) : camelWords rest
   where
     (us, restLs) = span isUpper s
     (ls, rest) = break isUpper restLs
@@ -79,31 +79,27 @@ capitalise "" = ""
 
 stripCommonPrefixWords :: String -> String -> [String]
 stripCommonPrefixWords xs ys =
-  stripCommonPrefix (camelWords xs) (camelWords (capitalise ys))
+    stripCommonPrefix (camelWords xs) (camelWords (capitalise ys))
 
 class GSomeJSON f where
+    gsomeToJSON :: f p -> Value
 
-  gsomeToJSON :: f p -> Value
-
-  gsomeParseJSON :: Value -> Parser (f p)
+    gsomeParseJSON :: Value -> Parser (f p)
 
 instance GSomeJSON f => GSomeJSON (D1 d f) where
+    gsomeToJSON (M1 x) = gsomeToJSON x
 
-  gsomeToJSON (M1 x) = gsomeToJSON x
-
-  gsomeParseJSON js = M1 <$> gsomeParseJSON js
+    gsomeParseJSON js = M1 <$> gsomeParseJSON js
 
 instance (ToJSON a, FromJSON a) => GSomeJSON (C1 c (S1 s (K1 i a))) where
+    gsomeToJSON (M1 (M1 (K1 x))) = toJSON x
 
-  gsomeToJSON (M1 (M1 (K1 x))) = toJSON x
-
-  gsomeParseJSON js = M1 . M1 . K1 <$> parseJSON js
+    gsomeParseJSON js = M1 . M1 . K1 <$> parseJSON js
 
 instance (GSomeJSON f, GSomeJSON g) => GSomeJSON (f :+: g) where
+    gsomeToJSON (L1 x) = gsomeToJSON x
+    gsomeToJSON (R1 y) = gsomeToJSON y
 
-  gsomeToJSON (L1 x) = gsomeToJSON x
-  gsomeToJSON (R1 y) = gsomeToJSON y
-
-  gsomeParseJSON js =
-    L1 <$> gsomeParseJSON js
-      <|> R1 <$> gsomeParseJSON js
+    gsomeParseJSON js =
+        L1 <$> gsomeParseJSON js
+            <|> R1 <$> gsomeParseJSON js

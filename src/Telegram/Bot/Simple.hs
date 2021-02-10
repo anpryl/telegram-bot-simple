@@ -1,12 +1,11 @@
-module Telegram.Bot.Simple
-  ( module Telegram.Bot.Simple.BotApp,
+module Telegram.Bot.Simple (
+    module Telegram.Bot.Simple.BotApp,
     module Telegram.Bot.Simple.Conversation,
     module Telegram.Bot.Simple.Delete,
     module Telegram.Bot.Simple.Eff,
     module Telegram.Bot.Simple.InlineKeyboard,
     module Telegram.Bot.Simple.Reply,
-  )
-where
+) where
 
 import Telegram.Bot.Simple.BotApp
 import Telegram.Bot.Simple.Conversation

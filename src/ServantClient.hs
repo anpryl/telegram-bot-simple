@@ -5,4 +5,4 @@ import Servant.Client
 
 runClientWithException :: ClientM a -> ClientEnv -> IO a
 runClientWithException act env =
-  either throwM pure =<< runClientM act env
+    either throwM pure =<< runClientM act env

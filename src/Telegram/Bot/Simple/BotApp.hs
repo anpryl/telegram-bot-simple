@@ -4,8 +4,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Telegram.Bot.Simple.BotApp
-  ( BotApp (..),
+module Telegram.Bot.Simple.BotApp (
+    BotApp (..),
     BotJob (..),
     startBot,
     startBot_,
@@ -13,8 +13,7 @@ module Telegram.Bot.Simple.BotApp
     startBotAsync_,
     getEnvToken,
     defaultPeriod,
-  )
-where
+) where
 
 import Control.Concurrent (ThreadId, killThread)
 import Control.Exception.Safe
@@ -31,19 +30,20 @@ import Time
 defaultPeriod :: Time Second
 defaultPeriod = Time @Second 10
 
--- | Start bot with asynchronous polling.
--- The result is a function that allows you to send actions
--- directly to the bot.
+{- | Start bot with asynchronous polling.
+ The result is a function that allows you to send actions
+ directly to the bot.
+-}
 startBotAsync ::
-  forall (unit :: Rat) model action.
-  (KnownDivRat unit Microsecond) =>
-  Time unit ->
-  BotApp model action ->
-  ClientEnv ->
-  IO (action -> IO ())
+    forall (unit :: Rat) model action.
+    (KnownDivRat unit Microsecond) =>
+    Time unit ->
+    BotApp model action ->
+    ClientEnv ->
+    IO (action -> IO ())
 startBotAsync period bot env = withBotEnv bot env $ \botEnv -> do
-  forkForeverWithName_ forkName (runClient botEnv) forkErrorHandler
-  return (issueAction botEnv Nothing)
+    forkForeverWithName_ forkName (runClient botEnv) forkErrorHandler
+    return (issueAction botEnv Nothing)
   where
     forkName = "startBotAsync"
     runClient botEnv = runClientWithException (startBotPolling period bot botEnv) env
@@ -51,53 +51,54 @@ startBotAsync period bot env = withBotEnv bot env $ \botEnv -> do
 
 -- | Like 'startBotAsync', but ignores result.
 startBotAsync_ ::
-  forall (unit :: Rat) model action.
-  (KnownDivRat unit Microsecond) =>
-  Time unit ->
-  BotApp model action ->
-  ClientEnv ->
-  IO ()
+    forall (unit :: Rat) model action.
+    (KnownDivRat unit Microsecond) =>
+    Time unit ->
+    BotApp model action ->
+    ClientEnv ->
+    IO ()
 startBotAsync_ period bot env = void (startBotAsync period bot env)
 
 -- | Start bot with update polling in the main thread.
 startBot ::
-  forall (unit :: Rat) model action.
-  (KnownDivRat unit Microsecond) =>
-  Time unit ->
-  BotApp model action ->
-  ClientEnv ->
-  IO (Either ClientError ())
+    forall (unit :: Rat) model action.
+    (KnownDivRat unit Microsecond) =>
+    Time unit ->
+    BotApp model action ->
+    ClientEnv ->
+    IO (Either ClientError ())
 startBot period bot env = withBotEnv bot env $ \botEnv ->
-  runClientM (startBotPolling period bot botEnv) env
+    runClientM (startBotPolling period bot botEnv) env
 
 -- | Like 'startBot', but ignores result.
 startBot_ ::
-  forall (unit :: Rat) model action.
-  (KnownDivRat unit Microsecond) =>
-  Time unit ->
-  BotApp model action ->
-  ClientEnv ->
-  IO ()
+    forall (unit :: Rat) model action.
+    (KnownDivRat unit Microsecond) =>
+    Time unit ->
+    BotApp model action ->
+    ClientEnv ->
+    IO ()
 startBot_ period bot = void . startBot period bot
 
--- | Get a 'Telegram.Token' from environment variable.
---
--- Common use:
---
--- @
--- 'getEnvToken' "TELEGRAM_BOT_TOKEN"
--- @
+{- | Get a 'Telegram.Token' from environment variable.
+
+ Common use:
+
+ @
+ 'getEnvToken' "TELEGRAM_BOT_TOKEN"
+ @
+-}
 getEnvToken :: String -> IO Telegram.Token
 getEnvToken varName = fromString <$> getEnv varName
 
 withBotEnv :: BotApp model action -> ClientEnv -> (BotEnv model action -> IO a) -> IO a
 withBotEnv bot env act = do
-  (threadIDs, botEnv) <- startBotEnv bot env
-  act botEnv `onException` traverse killThread threadIDs
+    (threadIDs, botEnv) <- startBotEnv bot env
+    act botEnv `onException` traverse killThread threadIDs
 
 startBotEnv :: BotApp model action -> ClientEnv -> IO ([ThreadId], BotEnv model action)
 startBotEnv bot env = do
-  botEnv <- defaultBotEnv bot env
-  jobThreadIds <- scheduleBotJobs botEnv (botJobs bot)
-  actionsThreadId <- processActionsIndefinitely bot botEnv
-  return (jobThreadIds <> [actionsThreadId], botEnv)
+    botEnv <- defaultBotEnv bot env
+    jobThreadIds <- scheduleBotJobs botEnv (botJobs bot)
+    actionsThreadId <- processActionsIndefinitely bot botEnv
+    return (jobThreadIds <> [actionsThreadId], botEnv)
