@@ -32,8 +32,10 @@ dependencies:
 - http-client-tls
 - monad-control
 - mtl
+- o-clock
 - pretty-show
 - profunctors
+- retry
 - safe-exceptions
 - servant
 - servant-client
@@ -44,7 +46,6 @@ dependencies:
 - time
 - transformers
 - unordered-containers
-- o-clock
 
 ghc-options:
 - -Wall
