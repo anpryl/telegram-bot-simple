@@ -30,7 +30,7 @@ botBaseUrl token =
 
 defaultTelegramClientEnv :: Token -> IO ClientEnv
 defaultTelegramClientEnv token =
-    ClientEnv
+    mkClientEnv
         <$> newManager tlsManagerSettings
         <*> pure (botBaseUrl token)
 
