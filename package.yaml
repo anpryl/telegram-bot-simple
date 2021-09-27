@@ -35,7 +35,6 @@ dependencies:
 - o-clock
 - pretty-show
 - profunctors
-- retry
 - safe-exceptions
 - servant
 - servant-client

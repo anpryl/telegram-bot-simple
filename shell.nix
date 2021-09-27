@@ -119,7 +119,7 @@ let
 
   projectShell = projectDrv.shellFor {
     packages = p: [ p.telegram-bot-simple ];
-    buildInputs = with pkgs; [ projectDrv.ghcid gmp zlib ormoluAlias ];
+    buildInputs = with pkgs; [ hpkgs.cabal-install projectDrv.ghcid gmp zlib ormoluAlias stack ];
     shellHook = pre-commit-check.shellHook;
   };
 in

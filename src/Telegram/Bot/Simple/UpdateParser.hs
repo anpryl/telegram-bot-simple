@@ -4,9 +4,7 @@
 module Telegram.Bot.Simple.UpdateParser where
 
 import Control.Applicative
-import Control.Monad.Fail
 import Control.Monad.Reader
-import Data.Monoid ((<>))
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Telegram.Bot.API
