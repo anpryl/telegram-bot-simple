@@ -18,7 +18,6 @@ module Telegram.Bot.Simple.BotApp (
 import Control.Immortal.Worker as I
 import Control.Monad (void)
 import Control.Monad.Logger
-import Control.Monad.Trans.Class
 import Data.String (fromString)
 import Servant.Client
 import ServantClient
@@ -43,10 +42,10 @@ startBotAsync ::
     Time unit ->
     BotApp model action ->
     ClientEnv ->
-    m (action -> IO ())
+    m (action -> m ())
 startBotAsync period bot env = withBotEnv bot env $ \botEnv -> do
     _ <- I.worker "TelegramBotSimple.startBotAsync" $ const $ liftIO $ runClient botEnv
-    return (issueAction botEnv Nothing)
+    return (liftIO . issueAction botEnv Nothing)
   where
     runClient botEnv = runClientWithException (startBotPolling period bot botEnv) env
 
@@ -64,23 +63,27 @@ startBotAsync_ period bot env = void (startBotAsync period bot env)
 
 -- | Start bot with update polling in the main thread.
 startBot ::
-    forall (unit :: Rat) model action.
+    forall (unit :: Rat) model action m.
     (KnownDivRat unit Microsecond) =>
+    MonadLogger m =>
+    MonadUnliftIO m =>
     Time unit ->
     BotApp model action ->
     ClientEnv ->
-    LoggingT IO (Either ClientError ())
+    m (Either ClientError ())
 startBot period bot env = withBotEnv bot env $ \botEnv ->
-    lift $ runClientM (startBotPolling period bot botEnv) env
+    liftIO $ runClientM (startBotPolling period bot botEnv) env
 
 -- | Like 'startBot', but ignores result.
 startBot_ ::
-    forall (unit :: Rat) model action.
+    forall (unit :: Rat) model action m.
     (KnownDivRat unit Microsecond) =>
+    MonadLogger m =>
+    MonadUnliftIO m =>
     Time unit ->
     BotApp model action ->
     ClientEnv ->
-    LoggingT IO ()
+    m ()
 startBot_ period bot = void . startBot period bot
 
 {- | Get a 'Telegram.Token' from environment variable.

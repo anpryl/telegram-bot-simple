@@ -2,7 +2,6 @@
 
 module Telegram.Bot.Simple.Debug where
 
-import Control.Monad.Trans (liftIO)
 import Control.Monad.Writer (tell)
 import Data.Aeson (ToJSON)
 import qualified Data.Aeson.Encode.Pretty as Aeson
@@ -13,6 +12,7 @@ import qualified Telegram.Bot.API as Telegram
 import Telegram.Bot.Simple.BotApp
 import Telegram.Bot.Simple.Eff
 import Text.Show.Pretty (ppShow)
+import UnliftIO
 
 -- * Bot debug tracing
 
