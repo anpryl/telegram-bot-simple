@@ -46,6 +46,7 @@ dependencies:
 - template-haskell
 - text
 - time
+- transformers
 - unordered-containers
 
 ghc-options:
