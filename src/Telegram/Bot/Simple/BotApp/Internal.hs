@@ -145,7 +145,11 @@ processActionJob botApp botEnv@BotEnv{..} = do
 
 -- | Process incoming actions indefinitely.
 processActionsIndefinitely ::
-    BotApp model action -> BotEnv model action -> LoggingT IO I.Thread
+    MonadLogger m =>
+    MonadUnliftIO m =>
+    BotApp model action ->
+    BotEnv model action ->
+    m I.Thread
 processActionsIndefinitely botApp botEnv =
     I.worker "TelegramBotSimple.processActionsIndefinitely" $ const $ liftIO runClient
   where

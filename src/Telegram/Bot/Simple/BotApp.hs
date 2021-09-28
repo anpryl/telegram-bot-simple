@@ -36,12 +36,14 @@ defaultPeriod = Time @Second 10
  directly to the bot.
 -}
 startBotAsync ::
-    forall (unit :: Rat) model action.
+    forall (unit :: Rat) model action m.
     (KnownDivRat unit Microsecond) =>
+    MonadLogger m =>
+    MonadUnliftIO m =>
     Time unit ->
     BotApp model action ->
     ClientEnv ->
-    LoggingT IO (action -> IO ())
+    m (action -> IO ())
 startBotAsync period bot env = withBotEnv bot env $ \botEnv -> do
     _ <- I.worker "TelegramBotSimple.startBotAsync" $ const $ liftIO $ runClient botEnv
     return (issueAction botEnv Nothing)
@@ -50,12 +52,14 @@ startBotAsync period bot env = withBotEnv bot env $ \botEnv -> do
 
 -- | Like 'startBotAsync', but ignores result.
 startBotAsync_ ::
-    forall (unit :: Rat) model action.
+    forall (unit :: Rat) model action m.
     (KnownDivRat unit Microsecond) =>
+    MonadLogger m =>
+    MonadUnliftIO m =>
     Time unit ->
     BotApp model action ->
     ClientEnv ->
-    LoggingT IO ()
+    m ()
 startBotAsync_ period bot env = void (startBotAsync period bot env)
 
 -- | Start bot with update polling in the main thread.
@@ -90,14 +94,25 @@ startBot_ period bot = void . startBot period bot
 getEnvToken :: String -> IO Telegram.Token
 getEnvToken varName = fromString <$> getEnv varName
 
-withBotEnv :: BotApp model action -> ClientEnv -> (BotEnv model action -> LoggingT IO a) -> LoggingT IO a
+withBotEnv ::
+    MonadLogger m =>
+    MonadUnliftIO m =>
+    BotApp model action ->
+    ClientEnv ->
+    (BotEnv model action -> m a) ->
+    m a
 withBotEnv bot env act = do
     botEnv <- startBotEnv bot env
     act botEnv
 
-startBotEnv :: BotApp model action -> ClientEnv -> LoggingT IO (BotEnv model action)
+startBotEnv ::
+    MonadLogger m =>
+    MonadUnliftIO m =>
+    BotApp model action ->
+    ClientEnv ->
+    m (BotEnv model action)
 startBotEnv bot env = do
-    botEnv <- lift $ defaultBotEnv bot env
-    _ <- lift $ scheduleBotJobs botEnv (botJobs bot)
+    botEnv <- liftIO $ defaultBotEnv bot env
+    _ <- liftIO $ scheduleBotJobs botEnv (botJobs bot)
     _ <- processActionsIndefinitely bot botEnv
     return botEnv
