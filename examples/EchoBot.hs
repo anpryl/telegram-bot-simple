@@ -2,6 +2,7 @@
 
 module Main where
 
+import Control.Monad.Logger
 import Data.Text as Text
 import Telegram.Bot.API
 import Telegram.Bot.Simple
@@ -40,7 +41,7 @@ handleAction action model = case action of
 run :: Token -> IO ()
 run token = do
     env <- defaultTelegramClientEnv token
-    startBot_ defaultPeriod (conversationBot updateChatId echoBot) env
+    runStdoutLoggingT $ startBot_ defaultPeriod (conversationBot updateChatId echoBot) env
 
 main :: IO ()
 main = do
