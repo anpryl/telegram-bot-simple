@@ -16,7 +16,16 @@ import qualified Telegram.Bot.API as Telegram
  The context may include an 'Update' the bot is handling at the moment.
 -}
 newtype BotM a = BotM {_runBotM :: ReaderT BotContext ClientM a}
-    deriving (Functor, Applicative, Monad, MonadReader BotContext, MonadIO, MonadThrow, MonadCatch, MonadError ClientError)
+    deriving
+        ( Functor
+        , Applicative
+        , Monad
+        , MonadIO
+        , MonadThrow
+        , MonadCatch
+        , MonadError ClientError
+        , MonadReader BotContext
+        )
 
 data BotContext = BotContext
     { botContextUser :: Telegram.User

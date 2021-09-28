@@ -36,7 +36,6 @@ conversationBot toConversation BotApp{..} =
         , botHandler = conversationHandler
         , botJobs = conversationJobs
         , botErrorHandlers = conversationErrorHandlers
-        , botForkErrorHandler = Nothing
         }
   where
     conversationErrorHandlers = toConversationErrorHandler <$> botErrorHandlers
@@ -74,7 +73,6 @@ useLatestUpdateInJobs BotApp{..} =
         , botHandler = newHandler
         , botJobs = newJobs
         , botErrorHandlers = newErrorHandlers
-        , botForkErrorHandler = Nothing
         }
   where
     newErrorHandlers = toNewErrorHandler <$> botErrorHandlers

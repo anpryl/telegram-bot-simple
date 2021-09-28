@@ -30,7 +30,8 @@ dependencies:
 - http-api-data
 - http-client
 - http-client-tls
-- monad-control
+- monad-logger
+- unliftio
 - mtl
 - o-clock
 - pretty-show
@@ -39,11 +40,12 @@ dependencies:
 - servant
 - servant-client
 - split
+- immortal
+- immortal-worker
 - stm
 - template-haskell
 - text
 - time
-- transformers
 - unordered-containers
 
 ghc-options:

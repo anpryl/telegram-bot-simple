@@ -3,18 +3,19 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 module Telegram.Bot.Simple.BotApp.Internal where
 
 import Control.Concurrent (ThreadId, forkIO)
-import Control.Concurrent.STM
 import Control.Exception.Safe
-import Control.Monad (forM_, void)
+import Control.Immortal as I
+import Control.Immortal.Worker as I
+import Control.Monad
 import Control.Monad.Error.Class
-import Control.Monad.Trans (liftIO)
+import Control.Monad.Logger
 import Data.Bifunctor (first)
 import Data.Text (Text)
-import ForkForever
 import Servant.Client (ClientEnv, ClientM, runClientM)
 import ServantClient
 import qualified System.Cron as Cron
@@ -22,6 +23,7 @@ import qualified Telegram.Bot.API as Telegram
 import Telegram.Bot.Simple.Eff
 import Text.Show.Pretty (ppShow)
 import Time
+import UnliftIO hiding (Handler, catchAny, catches, throwIO)
 
 -- | A bot application.
 data BotApp model action = BotApp
@@ -36,8 +38,6 @@ data BotApp model action = BotApp
       botJobs :: [BotJob model action]
     , -- | Handlers for exceptions
       botErrorHandlers :: [Handler BotM action]
-    , -- | Exception handler on errors on forks
-      botForkErrorHandler :: ForkExceptionHandler
     }
 
 -- | A background bot job.
@@ -105,8 +105,7 @@ defaultBotEnv BotApp{..} env =
 -- | Issue a new action for the bot to process.
 issueAction :: BotEnv model action -> Maybe Telegram.Update -> action -> IO ()
 issueAction BotEnv{..} update action =
-    atomically $
-        writeTQueue botActionsQueue (update, action)
+    atomically $ writeTQueue botActionsQueue (update, action)
 
 -- | Process one action.
 processAction ::
@@ -123,6 +122,7 @@ processAction BotApp{..} botEnv@BotEnv{..} update action = do
                 (newModel, effects) -> do
                     writeTVar botModelVar newModel
                     return effects
+    liftIO $ print $ "effects len: " <> show (length effects)
     mapM_ issueActionIfPossible =<< mapM runBot effects
   where
     issueActionIfPossible (Just act) = liftIO $ issueAction botEnv update act
@@ -134,7 +134,7 @@ processAction BotApp{..} botEnv@BotEnv{..} update action = do
                 `catchError` throw
                 `catches` (fmap Just <$> botErrorHandlers)
                 `catchAny` \err -> do
-                    liftIO (print $ "Action error: " <> ppShow err)
+                    liftIO $ print $ "Action error: " <> ppShow err
                     return Nothing
 
 -- | A job to wait for the next action and process it.
@@ -145,13 +145,11 @@ processActionJob botApp botEnv@BotEnv{..} = do
 
 -- | Process incoming actions indefinitely.
 processActionsIndefinitely ::
-    BotApp model action -> BotEnv model action -> IO ThreadId
+    BotApp model action -> BotEnv model action -> LoggingT IO I.Thread
 processActionsIndefinitely botApp botEnv =
-    forkForeverWithName forkName runClient forkErrorHandler
+    I.worker "TelegramBotSimple.processActionsIndefinitely" $ const $ liftIO runClient
   where
-    forkName = "processActionsIndefinitely"
     runClient = runClientWithException (processActionJob botApp botEnv) (botClientEnv botEnv)
-    forkErrorHandler = botForkErrorHandler botApp
 
 -- | Start 'Telegram.Update' polling for a bot.
 startBotPolling ::

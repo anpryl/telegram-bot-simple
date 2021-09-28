@@ -114,6 +114,8 @@ let
     overrides = hpkgsNew: hpkgsOld: with pkgs.haskell.lib; {
       telegram-bot-simple = hpkgsNew.callCabal2nix "telegram-bot-simple" src {};
       cron = dontCheck hpkgsOld.cron;
+      immortal = doJailbreak (hpkgsNew.callPackage ./nix/immortal.nix {});
+      immortal-worker = doJailbreak (hpkgsNew.callPackage ./nix/immortal-worker.nix {});
     };
   };
 

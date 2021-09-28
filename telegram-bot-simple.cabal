@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6f03bb5fa53b50ad34ba683670e53e3df4852df330f69d0c2d558a746a69aca0
+-- hash: 6d6436d22c5d1fb699518e4627ce6c5992ff0f6ac037b172e683a583ccf5d989
 
 name:           telegram-bot-simple
 version:        0.2.0
@@ -29,7 +29,6 @@ source-repository head
 
 library
   exposed-modules:
-      ForkForever
       ServantClient
       Telegram.Bot.API
       Telegram.Bot.API.Chat
@@ -69,7 +68,9 @@ library
     , http-api-data
     , http-client
     , http-client-tls
-    , monad-control
+    , immortal
+    , immortal-worker
+    , monad-logger
     , mtl
     , o-clock
     , pretty-show
@@ -82,7 +83,7 @@ library
     , template-haskell
     , text
     , time
-    , transformers
+    , unliftio
     , unordered-containers
   default-language: Haskell2010
 
@@ -102,7 +103,9 @@ executable example-echo-bot
     , http-api-data
     , http-client
     , http-client-tls
-    , monad-control
+    , immortal
+    , immortal-worker
+    , monad-logger
     , mtl
     , o-clock
     , pretty-show
@@ -116,7 +119,7 @@ executable example-echo-bot
     , template-haskell
     , text
     , time
-    , transformers
+    , unliftio
     , unordered-containers
   default-language: Haskell2010
 
@@ -136,7 +139,9 @@ executable example-todo-bot
     , http-api-data
     , http-client
     , http-client-tls
-    , monad-control
+    , immortal
+    , immortal-worker
+    , monad-logger
     , mtl
     , o-clock
     , pretty-show
@@ -150,6 +155,6 @@ executable example-todo-bot
     , template-haskell
     , text
     , time
-    , transformers
+    , unliftio
     , unordered-containers
   default-language: Haskell2010

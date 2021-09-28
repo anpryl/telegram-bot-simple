@@ -15,17 +15,18 @@ module Telegram.Bot.Simple.BotApp (
     defaultPeriod,
 ) where
 
-import Control.Concurrent (ThreadId, killThread)
-import Control.Exception.Safe
+import Control.Immortal.Worker as I
 import Control.Monad (void)
+import Control.Monad.Logger
+import Control.Monad.Trans.Class
 import Data.String (fromString)
-import ForkForever
 import Servant.Client
 import ServantClient
 import System.Environment (getEnv)
 import qualified Telegram.Bot.API as Telegram
 import Telegram.Bot.Simple.BotApp.Internal
 import Time
+import UnliftIO
 
 defaultPeriod :: Time Second
 defaultPeriod = Time @Second 10
@@ -40,14 +41,12 @@ startBotAsync ::
     Time unit ->
     BotApp model action ->
     ClientEnv ->
-    IO (action -> IO ())
+    LoggingT IO (action -> IO ())
 startBotAsync period bot env = withBotEnv bot env $ \botEnv -> do
-    forkForeverWithName_ forkName (runClient botEnv) forkErrorHandler
+    _ <- I.worker "TelegramBotSimple.startBotAsync" $ const $ liftIO $ runClient botEnv
     return (issueAction botEnv Nothing)
   where
-    forkName = "startBotAsync"
     runClient botEnv = runClientWithException (startBotPolling period bot botEnv) env
-    forkErrorHandler = botForkErrorHandler bot
 
 -- | Like 'startBotAsync', but ignores result.
 startBotAsync_ ::
@@ -56,7 +55,7 @@ startBotAsync_ ::
     Time unit ->
     BotApp model action ->
     ClientEnv ->
-    IO ()
+    LoggingT IO ()
 startBotAsync_ period bot env = void (startBotAsync period bot env)
 
 -- | Start bot with update polling in the main thread.
@@ -66,9 +65,9 @@ startBot ::
     Time unit ->
     BotApp model action ->
     ClientEnv ->
-    IO (Either ClientError ())
+    LoggingT IO (Either ClientError ())
 startBot period bot env = withBotEnv bot env $ \botEnv ->
-    runClientM (startBotPolling period bot botEnv) env
+    lift $ runClientM (startBotPolling period bot botEnv) env
 
 -- | Like 'startBot', but ignores result.
 startBot_ ::
@@ -77,7 +76,7 @@ startBot_ ::
     Time unit ->
     BotApp model action ->
     ClientEnv ->
-    IO ()
+    LoggingT IO ()
 startBot_ period bot = void . startBot period bot
 
 {- | Get a 'Telegram.Token' from environment variable.
@@ -91,14 +90,14 @@ startBot_ period bot = void . startBot period bot
 getEnvToken :: String -> IO Telegram.Token
 getEnvToken varName = fromString <$> getEnv varName
 
-withBotEnv :: BotApp model action -> ClientEnv -> (BotEnv model action -> IO a) -> IO a
+withBotEnv :: BotApp model action -> ClientEnv -> (BotEnv model action -> LoggingT IO a) -> LoggingT IO a
 withBotEnv bot env act = do
-    (threadIDs, botEnv) <- startBotEnv bot env
-    act botEnv `onException` traverse killThread threadIDs
+    botEnv <- startBotEnv bot env
+    act botEnv
 
-startBotEnv :: BotApp model action -> ClientEnv -> IO ([ThreadId], BotEnv model action)
+startBotEnv :: BotApp model action -> ClientEnv -> LoggingT IO (BotEnv model action)
 startBotEnv bot env = do
-    botEnv <- defaultBotEnv bot env
-    jobThreadIds <- scheduleBotJobs botEnv (botJobs bot)
-    actionsThreadId <- processActionsIndefinitely bot botEnv
-    return (jobThreadIds <> [actionsThreadId], botEnv)
+    botEnv <- lift $ defaultBotEnv bot env
+    _ <- lift $ scheduleBotJobs botEnv (botJobs bot)
+    _ <- processActionsIndefinitely bot botEnv
+    return botEnv
