@@ -10,7 +10,7 @@ module Telegram.Bot.API.Types where
 import Data.Aeson (FromJSON (..), ToJSON (..))
 import Data.Coerce (coerce)
 import Data.Hashable (Hashable)
-import Data.Int (Int32)
+import Data.Int (Int64)
 import Data.String
 import Data.Text (Text, pack)
 import Data.Time.Clock.POSIX (POSIXTime)
@@ -20,7 +20,7 @@ import Telegram.Bot.API.Internal.Utils
 
 type RequiredQueryParam = QueryParam' '[Required, Strict]
 
-newtype Seconds = Seconds Int32
+newtype Seconds = Seconds Int64
     deriving (Eq, Show, Num, ToJSON, FromJSON)
 
 -- * Available types
@@ -48,10 +48,10 @@ data User = User
     deriving (Show, Generic)
 
 -- | Unique identifier for this user or bot.
-newtype UserId = UserId Int32
+newtype UserId = UserId Int64
     deriving (Eq, Show, ToJSON, FromJSON)
 
-instance ToHttpApiData UserId where toUrlPiece = pack . show @Int32 . coerce
+instance ToHttpApiData UserId where toUrlPiece = pack . show @Int64 . coerce
 
 -- ** Chat
 
@@ -195,10 +195,10 @@ data Message = Message
     deriving (Generic, Show)
 
 -- | Unique message identifier inside this chat.
-newtype MessageId = MessageId Int32
+newtype MessageId = MessageId Int64
     deriving (Eq, Show, ToJSON, FromJSON)
 
-instance ToHttpApiData MessageId where toUrlPiece a = pack . show @Int32 $ coerce a
+instance ToHttpApiData MessageId where toUrlPiece a = pack . show @Int64 $ coerce a
 
 -- | The unique identifier of a media message group a message belongs to.
 newtype MediaGroupId = MediaGroupId Text
@@ -211,9 +211,9 @@ data MessageEntity = MessageEntity
     { -- | Type of the entity. Can be mention (@username), hashtag, bot_command, url, email, bold (bold text), italic (italic text), code (monowidth string), pre (monowidth block), text_link (for clickable text URLs), text_mention (for users without usernames)
       messageEntityType :: MessageEntityType
     , -- | Offset in UTF-16 code units to the start of the entity
-      messageEntityOffset :: Int32
+      messageEntityOffset :: Int64
     , -- | Length of the entity in UTF-16 code units
-      messageEntityLength :: Int32
+      messageEntityLength :: Int64
     , -- | For “text_link” only, url that will be opened after user taps on the text
       messageEntityUrl :: Maybe Text
     , -- | For “text_mention” only, the mentioned user
@@ -249,11 +249,11 @@ data PhotoSize = PhotoSize
     { -- | Unique identifier for this file
       photoSizeFileId :: FileId
     , -- | Photo width
-      photoSizeWidth :: Int32
+      photoSizeWidth :: Int64
     , -- | Photo height
-      photoSizeHeight :: Int32
+      photoSizeHeight :: Int64
     , -- | File size
-      photoSizeFileSize :: Maybe Int32
+      photoSizeFileSize :: Maybe Int64
     }
     deriving (Generic, Show)
 
@@ -276,7 +276,7 @@ data Audio = Audio
     , -- | MIME type of the file as defined by sender
       audioMimeType :: Maybe Text
     , -- | File size
-      audioFileSize :: Maybe Int32
+      audioFileSize :: Maybe Int64
     }
     deriving (Generic, Show)
 
@@ -293,7 +293,7 @@ data Document = Document
     , -- | MIME type of the file as defined by sender
       documentMimeType :: Maybe Text
     , -- | File size
-      documentFileSize :: Maybe Int32
+      documentFileSize :: Maybe Int64
     }
     deriving (Generic, Show)
 
@@ -304,9 +304,9 @@ data Video = Video
     { -- | Unique identifier for this file
       videoFileId :: FileId
     , -- | Video width as defined by sender
-      videoWidth :: Int32
+      videoWidth :: Int64
     , -- | Video height as defined by sender
-      videoHeight :: Int32
+      videoHeight :: Int64
     , -- | Duration of the video in seconds as defined by sender
       videoDuration :: Seconds
     , -- | Video thumbnail
@@ -314,7 +314,7 @@ data Video = Video
     , -- | Mime type of a file as defined by sender
       videoMimeType :: Maybe Text
     , -- | File size
-      videoFileSize :: Maybe Int32
+      videoFileSize :: Maybe Int64
     }
     deriving (Generic, Show)
 
@@ -329,7 +329,7 @@ data Voice = Voice
     , -- | MIME type of the file as defined by sender
       voiceMimeType :: Maybe Text
     , -- | File size
-      voiceFileSize :: Maybe Int32
+      voiceFileSize :: Maybe Int64
     }
     deriving (Generic, Show)
 
@@ -340,13 +340,13 @@ data VideoNote = VideoNote
     { -- | Unique identifier for this file
       videoNoteFileId :: Text
     , -- | Video width and height as defined by sender
-      videoNoteLength :: Int32
+      videoNoteLength :: Int64
     , -- | Duration of the video in seconds as defined by sender
       videoNoteDuration :: Seconds
     , -- | Video thumbnail
       videoNoteThumb :: Maybe PhotoSize
     , -- | File size
-      videoNoteFileSize :: Maybe Int32
+      videoNoteFileSize :: Maybe Int64
     }
     deriving (Generic, Show)
 
@@ -396,7 +396,7 @@ data Venue = Venue
 -- | This object represent a user's profile pictures.
 data UserProfilePhotos = UserProfilePhotos
     { -- | Total number of profile pictures the target user has
-      userProfilePhotosTotalCount :: Int32
+      userProfilePhotosTotalCount :: Int64
     , -- | Requested profile pictures (in up to 4 sizes each)
       userProfilePhotosPhotos :: [[PhotoSize]]
     }
@@ -413,7 +413,7 @@ data File = File
     { -- | Unique identifier for this file
       fileFileId :: FileId
     , -- | File size, if known
-      fileFileSize :: Maybe Int32
+      fileFileSize :: Maybe Int64
     , -- | File path. Use https://api.telegram.org/file/bot<token>/<file_path> to get the file.
       fileFilePath :: Maybe Text
     }
