@@ -612,52 +612,48 @@ data ResponseParameters = ResponseParameters
     }
     deriving (Show, Generic)
 
+-- TH splice barrier: start fresh group
+$(return [])
+
+-- Group 1: Leaf types (no custom type dependencies)
 deriveJSON' ''User
-
-deriveJSON' ''Chat
-
-deriveJSON' ''Message
-
-deriveJSON' ''MessageEntity
-
 deriveJSON' ''PhotoSize
-
 deriveJSON' ''Audio
-
-deriveJSON' ''Document
-
-deriveJSON' ''Video
-
 deriveJSON' ''Voice
-
-deriveJSON' ''VideoNote
-
 deriveJSON' ''Contact
-
 deriveJSON' ''Location
-
-deriveJSON' ''Venue
-
-deriveJSON' ''UserProfilePhotos
-
 deriveJSON' ''File
-
-deriveJSON' ''ReplyKeyboardMarkup
-
 deriveJSON' ''KeyboardButton
-
 deriveJSON' ''ReplyKeyboardRemove
-
-deriveJSON' ''InlineKeyboardMarkup
-
 deriveJSON' ''InlineKeyboardButton
-
-deriveJSON' ''CallbackQuery
-
 deriveJSON' ''ForceReply
-
 deriveJSON' ''ChatPhoto
+deriveJSON' ''ResponseParameters
 
+-- TH splice barrier: Group 1 instances now available
+$(return [])
+
+-- Group 2: Types depending on Group 1 types only
+deriveJSON' ''MessageEntity
+deriveJSON' ''Document
+deriveJSON' ''Video
+deriveJSON' ''VideoNote
+deriveJSON' ''Venue
+deriveJSON' ''UserProfilePhotos
+deriveJSON' ''ReplyKeyboardMarkup
+deriveJSON' ''InlineKeyboardMarkup
 deriveJSON' ''ChatMember
 
-deriveJSON' ''ResponseParameters
+-- TH splice barrier: Group 2 instances now available
+$(return [])
+
+-- Group 3: Circular pair (Chat <-> Message)
+-- Combined into a single TH splice so both instances land in the same
+-- declaration group and GHC resolves mutual constraints together.
+$(concat <$> sequence [deriveJSON' ''Chat, deriveJSON' ''Message])
+
+-- TH splice barrier: Chat and Message instances now available
+$(return [])
+
+-- Group 4: Types depending on Chat/Message
+deriveJSON' ''CallbackQuery

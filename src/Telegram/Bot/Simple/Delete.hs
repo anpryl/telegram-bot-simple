@@ -1,5 +1,6 @@
 module Telegram.Bot.Simple.Delete where
 
+import Control.Monad (void)
 import Control.Monad.Reader
 import Telegram.Bot.API (ChatId, MessageId, messageMessageId)
 import qualified Telegram.Bot.API as Telegram

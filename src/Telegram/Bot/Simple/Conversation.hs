@@ -5,6 +5,7 @@
 module Telegram.Bot.Simple.Conversation where
 
 import Control.Exception.Safe
+import Control.Monad ((<=<))
 import Control.Monad.Reader
 import Data.Bifunctor
 import Data.HashMap.Strict (HashMap)
