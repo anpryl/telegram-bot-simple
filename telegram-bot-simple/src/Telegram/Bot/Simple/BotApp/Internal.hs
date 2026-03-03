@@ -8,7 +8,7 @@ module Telegram.Bot.Simple.BotApp.Internal where
 
 import           Control.Concurrent          (ThreadId, forkIO)
 import           Control.Concurrent.STM
-import           Control.Exception.Safe      (Handler, catches, throw)
+import           Control.Exception.Safe      (Handler (..), catches, throw)
 import           Control.Monad               (forM_, void, (<=<))
 import           Control.Monad.Error.Class   (catchError)
 import           Control.Monad.Logger        (MonadLogger)
@@ -24,6 +24,7 @@ import           Time                        (KnownDivRat, Microsecond, Rat, Tim
                                               threadDelay)
 import           UnliftIO                    (MonadUnliftIO)
 
+import           Control.Immortal             (Thread)
 import qualified Control.Immortal.Worker     as I
 import qualified Telegram.Bot.API            as Telegram
 import           Telegram.Bot.Simple.Eff
@@ -133,7 +134,8 @@ processAction BotApp{..} botEnv@BotEnv{..} update action = do
     botCtx = BotContext botUser update
     runBotAndIssueAction act =
       (liftIO . issueAction botEnv update) =<< runBotM botCtx
-        (act `catchError` throw `catches` botErrorHandlers)
+        (act `catchError` throw `catches` map liftHandler botErrorHandlers)
+    liftHandler (Handler h) = Handler (fmap Just . h)
 
 -- | A job to wait for the next action and process it.
 processActionJob :: BotApp model action -> BotEnv model action -> ClientM ()
@@ -147,7 +149,7 @@ processActionJob botApp botEnv@BotEnv{..} = do
 -- instead of 'asyncLink' which propagates exceptions to the parent.
 processActionsIndefinitely
   :: (MonadLogger m, MonadUnliftIO m)
-  => BotApp model action -> BotEnv model action -> m I.Thread
+  => BotApp model action -> BotEnv model action -> m Thread
 processActionsIndefinitely botApp botEnv =
   I.worker "TelegramBotSimple.processActionsIndefinitely" $ const $ liftIO runClient
   where
