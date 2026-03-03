@@ -24,6 +24,7 @@ echoBot = BotApp
   , botAction = updateToAction
   , botHandler = handleAction
   , botJobs = []
+  , botErrorHandlers = []
   }
 
 updateToAction :: Update -> Model -> Maybe Action
@@ -63,7 +64,7 @@ handleAction action model = case action of
 run :: Token -> IO ()
 run token = do
   env <- defaultTelegramClientEnv token
-  startBot_ echoBot env
+  runNoLoggingT $ startBot_ defaultPeriod echoBot env
 
 main :: IO ()
 main = do

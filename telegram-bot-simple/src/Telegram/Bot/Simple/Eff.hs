@@ -6,6 +6,8 @@
 {-# LANGUAGE FlexibleInstances          #-}
 module Telegram.Bot.Simple.Eff where
 
+import           Control.Exception.Safe  (MonadThrow, MonadCatch)
+import           Control.Monad.Error.Class (MonadError)
 import           Control.Monad.Reader
 import           Control.Monad.Writer
 import           Data.Bifunctor
@@ -17,7 +19,11 @@ import qualified Telegram.Bot.API     as Telegram
 --
 -- The context may include an 'Update' the bot is handling at the moment.
 newtype BotM a = BotM { _runBotM :: ReaderT BotContext ClientM a }
-  deriving (Functor, Applicative, Monad, MonadReader BotContext, MonadIO)
+  deriving ( Functor, Applicative, Monad
+           , MonadReader BotContext, MonadIO
+           , MonadThrow, MonadCatch
+           , MonadError ClientError
+           )
 
 data BotContext = BotContext
   { botContextUser   :: Telegram.User

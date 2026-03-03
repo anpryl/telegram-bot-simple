@@ -39,6 +39,7 @@ library
       Telegram.Bot.Simple.Instances
       Telegram.Bot.Simple.Reply
       Telegram.Bot.Simple.RunTG
+      Telegram.Bot.Simple.ServantClient
       Telegram.Bot.Simple.UpdateParser
       Telegram.Bot.Simple.Webhook
   other-modules:
@@ -49,17 +50,22 @@ library
   build-depends:
       aeson
     , aeson-pretty
-    , async
     , base >=4.9 && <5
     , cron >=0.7.0
     , hashable
+    , immortal
+    , immortal-worker
+    , monad-logger
     , mtl
+    , o-clock
     , pretty-show
+    , safe-exceptions
     , servant-client
     , servant-server
     , stm
     , telegram-bot-api >= 7.4.3
     , text
+    , unliftio
     , unordered-containers
     , warp
     , warp-tls

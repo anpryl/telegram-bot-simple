@@ -69,6 +69,7 @@ gameBot settings = BotApp
   , botAction = flip (updateToAction settings)
   , botHandler = handleAction settings
   , botJobs = []
+  , botErrorHandlers = []
   }
 
 updateToAction :: BotSettings -> Model -> Update -> Maybe Action
@@ -173,7 +174,7 @@ runTelegramBot = do
   botSettings <- loadBotSettings
   let token = Token (botToken botSettings)
   env <- defaultTelegramClientEnv token
-  startBot_ (conversationBot updateChatId (gameBot botSettings)) env
+  runNoLoggingT $ startBot_ defaultPeriod (conversationBot updateChatId (gameBot botSettings)) env
 
 data BotSettings = BotSettings
   { botToken      :: Text

@@ -1,35 +1,50 @@
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE DeriveFunctor       #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Telegram.Bot.Simple.BotApp.Internal where
 
-import           Control.Concurrent       (ThreadId, threadDelay)
-import           Control.Concurrent.Async (Async, async, asyncThreadId, link)
+import           Control.Concurrent          (ThreadId, forkIO)
 import           Control.Concurrent.STM
-import           Control.Monad           (forever, void, (<=<))
-import           Control.Monad.Except    (catchError)
-import           Control.Monad.Trans     (liftIO)
-import           Data.Bifunctor          (first)
-import           Data.Text               (Text)
-import           Servant.Client          (ClientEnv, ClientM, runClientM)
-import qualified System.Cron             as Cron
+import           Control.Exception.Safe      (Handler, catches, throw)
+import           Control.Monad               (forM_, void, (<=<))
+import           Control.Monad.Error.Class   (catchError)
+import           Control.Monad.Logger        (MonadLogger)
+import           Control.Monad.Trans         (liftIO)
+import           Data.Aeson.Types            (parseEither, parseJSON)
+import           Data.Bifunctor              (first)
+import           Data.Either                 (partitionEithers)
+import           Data.Text                   (Text)
+import           Servant.Client              (ClientEnv, ClientM, runClientM)
+import qualified System.Cron                 as Cron
+import           Text.Show.Pretty            (ppShow)
+import           Time                        (KnownDivRat, Microsecond, Rat, Time,
+                                              threadDelay)
+import           UnliftIO                    (MonadUnliftIO)
 
-import qualified Telegram.Bot.API        as Telegram
+import qualified Control.Immortal.Worker     as I
+import qualified Telegram.Bot.API            as Telegram
 import           Telegram.Bot.Simple.Eff
-import Data.Either (partitionEithers)
-import Data.Aeson.Types (parseEither, parseJSON)
+import           Telegram.Bot.Simple.ServantClient (runClientWithException)
 
 -- | A bot application.
 data BotApp model action = BotApp
-  { botInitialModel :: model
+  { botInitialModel  :: model
     -- ^ Initial bot state.
-  , botAction       :: Telegram.Update -> model -> Maybe action
+  , botAction        :: Telegram.Update -> model -> Maybe action
     -- ^ How to convert incoming 'Telegram.Update's into @action@s.
     -- See "Telegram.Bot.Simple.UpdateParser" for some helpers.
-  , botHandler      :: action -> model -> Eff action model
+  , botHandler       :: action -> model -> Eff action model
     -- ^ How to handle @action@s.
-  , botJobs         :: [BotJob model action]
+  , botJobs          :: [BotJob model action]
     -- ^ Background bot jobs.
+  , botErrorHandlers :: [Handler BotM action]
+    -- ^ Exception handlers for bot action processing.
+    -- When an action handler throws, these handlers can recover
+    -- by returning a new action to process, or re-throw.
+    -- Default: @[]@ (no custom error handling).
   }
 
 -- | A background bot job.
@@ -68,7 +83,7 @@ runJobTask botEnv@BotEnv{..} task = do
   res <- flip runClientM botClientEnv $
     mapM_ ((liftIO . issueAction botEnv Nothing) <=< runBotM (BotContext botUser Nothing)) effects
   case res of
-    Left err -> print err
+    Left err -> putStrLn $ "Job error: " <> ppShow err
     Right _  -> return ()
 
 -- | Schedule a cron-like bot job.
@@ -87,7 +102,7 @@ defaultBotEnv BotApp{..} env = BotEnv
   <$> newTVarIO botInitialModel
   <*> newTQueueIO
   <*> pure env
-  <*> (either (error . show) Telegram.responseResult <$> runClientM Telegram.getMe env)
+  <*> (Telegram.responseResult <$> runClientWithException Telegram.getMe env)
 
 -- | Issue a new action for the bot to process.
 issueAction :: BotEnv model action -> Maybe Telegram.Update -> Maybe action -> IO ()
@@ -96,6 +111,10 @@ issueAction BotEnv{..} update (Just action) = atomically $
 issueAction _ _ _ = pure ()
 
 -- | Process one action.
+--
+-- If 'botErrorHandlers' are defined, exceptions thrown during action
+-- processing are caught and routed through the handlers, which can
+-- return a recovery action or re-throw.
 processAction
   :: BotApp model action
   -> BotEnv model action
@@ -109,9 +128,12 @@ processAction BotApp{..} botEnv@BotEnv{..} update action = do
       (newModel, effects) -> do
         writeTVar botModelVar newModel
         return effects
-  let runBotAndIssueAction
-        = (liftIO . issueAction botEnv update) <=< runBotM (BotContext botUser update)
   mapM_ runBotAndIssueAction effects
+  where
+    botCtx = BotContext botUser update
+    runBotAndIssueAction act =
+      (liftIO . issueAction botEnv update) =<< runBotM botCtx
+        (act `catchError` throw `catches` botErrorHandlers)
 
 -- | A job to wait for the next action and process it.
 processActionJob :: BotApp model action -> BotEnv model action -> ClientM ()
@@ -120,29 +142,40 @@ processActionJob botApp botEnv@BotEnv{..} = do
   processAction botApp botEnv update action
 
 -- | Process incoming actions indefinitely.
+--
+-- Uses an immortal worker thread that automatically restarts on failure,
+-- instead of 'asyncLink' which propagates exceptions to the parent.
 processActionsIndefinitely
-  :: BotApp model action -> BotEnv model action -> IO ThreadId
-processActionsIndefinitely botApp botEnv = do
-  a <- asyncLink $ forever $ do
-    res <- runClientM (processActionJob botApp botEnv) (botClientEnv botEnv)
-    case res of
-      Left err -> print err
-      Right _ -> return ()
-  return (asyncThreadId a)
+  :: (MonadLogger m, MonadUnliftIO m)
+  => BotApp model action -> BotEnv model action -> m I.Thread
+processActionsIndefinitely botApp botEnv =
+  I.worker "TelegramBotSimple.processActionsIndefinitely" $ const $ liftIO runClient
+  where
+    runClient = runClientWithException (processActionJob botApp botEnv) (botClientEnv botEnv)
 
 -- | Start 'Telegram.Update' polling for a bot.
-startBotPolling :: BotApp model action -> BotEnv model action -> ClientM ()
-startBotPolling BotApp{..} botEnv@BotEnv{..} = startPolling handleUpdate
+startBotPolling
+  :: forall (unit :: Rat) model action.
+     KnownDivRat unit Microsecond
+  => Time unit
+  -> BotApp model action
+  -> BotEnv model action
+  -> ClientM ()
+startBotPolling period BotApp{..} botEnv@BotEnv{..} =
+  startPolling period handleUpdate
   where
-    handleUpdate update = liftIO . void . asyncLink $ do
+    handleUpdate update = liftIO . void . forkIO $ do
       maction <- botAction update <$> readTVarIO botModelVar
-      case maction of
-        Nothing     -> return ()
-        Just action -> issueAction botEnv (Just update) (Just action)
+      forM_ maction (\act -> issueAction botEnv (Just update) (Just act))
 
 -- | Start 'Telegram.Update' polling with a given update handler.
-startPolling :: (Telegram.Update -> ClientM a) -> ClientM a
-startPolling handleUpdate = go Nothing
+startPolling
+  :: forall (unit :: Rat).
+     KnownDivRat unit Microsecond
+  => Time unit
+  -> (Telegram.Update -> ClientM ())
+  -> ClientM ()
+startPolling period handleUpdate = go Nothing
   where
     go lastUpdateId = do
       let inc (Telegram.UpdateId n) = Telegram.UpdateId (n + 1)
@@ -154,7 +187,7 @@ startPolling handleUpdate = go Nothing
 
       nextUpdateId <- case res of
         Left servantErr -> do
-          liftIO (print servantErr)
+          liftIO (putStrLn $ "Polling error: " <> ppShow servantErr)
           pure lastUpdateId
         Right result -> do
           let updateValues = Telegram.responseResult result
@@ -164,7 +197,7 @@ startPolling handleUpdate = go Nothing
           mapM_ reportParseError errors
           mapM_ handleUpdate updates
           pure maxUpdateId
-      liftIO $ threadDelay 1000000
+      liftIO $ threadDelay period
       go nextUpdateId
 
     parseUpdates updates =
@@ -174,15 +207,3 @@ startPolling handleUpdate = go Nothing
       liftIO $ putStrLn $
         "Failed to parse an update! Please, make sure you have the latest version of `telegram-bot-api`\
         \ library and consider opening an issue if so. Error message: " <> err
-
--- ** Helpers
-
--- | Instead of 'forkIO' which hides exceptions,
--- allow users to handle those exceptions separately.
---
--- See <https://github.com/fizruk/telegram-bot-simple/issues/159>.
-asyncLink :: IO a -> IO (Async a)
-asyncLink action = do
-  a <- async action
-  link a
-  return a

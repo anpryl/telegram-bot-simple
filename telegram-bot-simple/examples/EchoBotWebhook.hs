@@ -32,6 +32,7 @@ echoBot = BotApp
   , botAction = updateToAction
   , botHandler = handleAction
   , botJobs = []
+  , botErrorHandlers = []
   }
 
 updateToAction :: Update -> Model -> Maybe Action

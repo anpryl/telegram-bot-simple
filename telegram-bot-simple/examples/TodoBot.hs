@@ -42,6 +42,7 @@ todoBot3 = BotApp
   , botAction = flip updateToAction
   , botHandler = handleAction
   , botJobs = []
+  , botErrorHandlers = []
   }
   where
     updateToAction :: Model -> Update -> Maybe Action
@@ -121,7 +122,7 @@ removeItem item model = model
 run :: Token -> IO ()
 run token = do
   env <- defaultTelegramClientEnv token
-  startBot_ (conversationBot updateChatId todoBot3) env
+  runNoLoggingT $ startBot_ defaultPeriod (conversationBot updateChatId todoBot3) env
 
 main :: IO ()
 main = do

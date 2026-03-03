@@ -3,9 +3,10 @@
 {-# LANGUAGE TypeOperators         #-}
 module Telegram.Bot.Simple.Webhook (webhookApp) where
 
+import           Control.Concurrent                  (forkIO)
 import           Control.Concurrent.STM
+import           Control.Monad                       (forM_, void)
 import           Control.Monad.IO.Class              (MonadIO (liftIO))
-import           Data.Functor                        (void)
 import           Servant
 
 import           Telegram.Bot.API.GettingUpdates     (Update)
@@ -19,11 +20,9 @@ server BotApp {..} botEnv@BotEnv {..} =
   where
     updateHandler :: Update -> Handler ()
     updateHandler update = liftIO $ handleUpdate update
-    handleUpdate update = liftIO . void . asyncLink $ do
+    handleUpdate update = void . forkIO $ do
       maction <- botAction update <$> readTVarIO botModelVar
-      case maction of
-        Nothing     -> return ()
-        Just action -> issueAction botEnv (Just update) (Just action)
+      forM_ maction (\act -> issueAction botEnv (Just update) (Just act))
 
 webhookAPI :: Proxy WebhookAPI
 webhookAPI = Proxy
