@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -15,11 +16,12 @@ import Control.Monad
 import Control.Monad.Error.Class
 import Control.Monad.Logger
 import Data.Bifunctor (first)
-import Data.Text (Text)
+import Data.Text (Text, pack)
 import Servant.Client (ClientEnv, ClientM, runClientM)
 import ServantClient
 import qualified System.Cron as Cron
 import qualified Telegram.Bot.API as Telegram
+import Telegram.Bot.API.RetryAfter (retryAfterFromClientError)
 import Telegram.Bot.Simple.Eff
 import Text.Show.Pretty (ppShow)
 import Time
@@ -148,34 +150,73 @@ processActionsIndefinitely botApp botEnv =
   where
     runClient = runClientWithException (processActionJob botApp botEnv) (botClientEnv botEnv)
 
+{- | Capture the caller's logging context as a plain 'IO' action.
+
+ The bot loops run in 'ClientM', which has no 'MonadLogger' instance and
+ cannot be given one without wrapping every Telegram call. Rather than thread
+ a logger type through the API, callers hand down the one thing those loops
+ need: somewhere to put a warning. Call this from inside the worker body so
+ the captured context is the worker's own.
+-}
+askLogWarnIO :: (MonadLogger m, MonadUnliftIO m) => m (Text -> IO ())
+askLogWarnIO = do
+    runInIO <- askRunInIO
+    pure (runInIO . logWarnN)
+
+{- | Sleep out a flood-control wait that Telegram has asked us for.
+
+ Every wait is announced, not just the long ones. Before this existed a 429
+ produced an @[Error]@ line naming the dead worker, so staying silent here
+ would trade a misleading log entry for no log entry — and rate limiting would
+ become invisible rather than merely confusing. They are rare enough
+ (twenty-two in three days of prod, all in two bursts) that logging each one
+ costs nothing.
+-}
+waitOutFloodControl :: (Text -> IO ()) -> Text -> Telegram.Seconds -> IO ()
+waitOutFloodControl logWarnIO request (Telegram.Seconds seconds) = do
+    logWarnIO $
+        "Telegram rate-limited "
+            <> request
+            <> "; waiting "
+            <> pack (show seconds)
+            <> "s before retrying"
+    threadDelay (sec (fromIntegral seconds))
+
 -- | Start 'Telegram.Update' polling for a bot.
 startBotPolling ::
     forall (unit :: Rat) model action.
     (KnownDivRat unit Microsecond) =>
     Time unit ->
+    (Text -> IO ()) ->
     BotApp model action ->
     BotEnv model action ->
     ClientM ()
-startBotPolling period BotApp{..} botEnv@BotEnv{..} =
-    startPolling period handleUpdate
+startBotPolling period logWarnIO BotApp{..} botEnv@BotEnv{..} =
+    startPolling period logWarnIO handleUpdate
   where
     handleUpdate update = void . liftIO . forkIO $ do
         maction <- botAction update <$> readTVarIO botModelVar
         forM_ maction (issueAction botEnv (Just update))
 
--- | Start 'Telegram.Update' polling with a given update handler.
+{- | Start 'Telegram.Update' polling with a given update handler.
+
+ Takes a warning sink because 'ClientM' has no 'MonadLogger' instance, and the
+ one thing worse than a rate-limited bot is one that has silently gone to
+ sleep for a minute with nothing in the journal to say so.
+-}
 startPolling ::
     forall (unit :: Rat).
     (KnownDivRat unit Microsecond) =>
     Time unit ->
+    (Text -> IO ()) ->
     (Telegram.Update -> ClientM ()) ->
     ClientM ()
-startPolling period handleUpdate = go Nothing
+startPolling period logWarnIO handleUpdate = go Nothing
   where
     go lastUpdateId = do
         let inc (Telegram.UpdateId n) = Telegram.UpdateId (n + 1)
             offset = fmap inc lastUpdateId
-        res <- Telegram.getUpdates (Telegram.GetUpdatesRequest offset Nothing Nothing Nothing)
+        res <- getUpdates offset
         nextUpdateId <- do
             let updates = Telegram.responseResult res
                 updateIds = map Telegram.updateUpdateId updates
@@ -184,3 +225,23 @@ startPolling period handleUpdate = go Nothing
             pure maxUpdateId
         liftIO $ threadDelay period
         go nextUpdateId
+
+    -- Retries a rate-limited poll forever, and with the SAME offset.
+    --
+    -- Forever, because a bot that stops polling is a dead bot with a live
+    -- process, which is worse than a slow one. The wait is bounded per attempt
+    -- and re-read from Telegram each time, so this cannot spin.
+    --
+    -- The offset is the reason this retry lives here rather than in the
+    -- supervisor. Updates are confirmed by the NEXT poll's offset, so anything
+    -- handled in the call that got rate-limited is still unconfirmed; letting
+    -- the thread die restarts 'go' at 'Nothing' and Telegram re-delivers them,
+    -- running those commands a second time. Retrying in place keeps the offset
+    -- we already had.
+    getUpdates offset =
+        Telegram.getUpdates (Telegram.GetUpdatesRequest offset Nothing Nothing Nothing)
+            `catchError` \err -> case retryAfterFromClientError err of
+                Nothing -> throwError err
+                Just retryAfter -> do
+                    liftIO $ waitOutFloodControl logWarnIO "getUpdates" retryAfter
+                    getUpdates offset

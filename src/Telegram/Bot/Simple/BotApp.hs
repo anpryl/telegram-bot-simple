@@ -44,10 +44,13 @@ startBotAsync ::
     ClientEnv ->
     m (action -> m ())
 startBotAsync period bot env = withBotEnv bot env $ \botEnv -> do
-    _ <- I.worker "TelegramBotSimple.startBotAsync" $ const $ liftIO $ runClient botEnv
+    _ <- I.worker "TelegramBotSimple.startBotAsync" $ const $ do
+        logWarnIO <- askLogWarnIO
+        liftIO $ runClient logWarnIO botEnv
     return (liftIO . issueAction botEnv Nothing)
   where
-    runClient botEnv = runClientWithException (startBotPolling period bot botEnv) env
+    runClient logWarnIO botEnv =
+        runClientWithException (startBotPolling period logWarnIO bot botEnv) env
 
 -- | Like 'startBotAsync', but ignores result.
 startBotAsync_ ::
@@ -71,8 +74,9 @@ startBot ::
     BotApp model action ->
     ClientEnv ->
     m (Either ClientError ())
-startBot period bot env = withBotEnv bot env $ \botEnv ->
-    liftIO $ runClientM (startBotPolling period bot botEnv) env
+startBot period bot env = withBotEnv bot env $ \botEnv -> do
+    logWarnIO <- askLogWarnIO
+    liftIO $ runClientM (startBotPolling period logWarnIO bot botEnv) env
 
 -- | Like 'startBot', but ignores result.
 startBot_ ::
