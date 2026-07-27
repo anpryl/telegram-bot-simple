@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.3.
+-- This file has been generated from package.yaml by hpack version 0.38.3.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 6d6436d22c5d1fb699518e4627ce6c5992ff0f6ac037b172e683a583ccf5d989
+-- hash: f7478538ca07d7bf5aca22db72108569b8dce52ee99fbbb93cda23e0d5abb635
 
 name:           telegram-bot-simple
 version:        0.2.0
@@ -39,6 +39,7 @@ library
       Telegram.Bot.API.MakingRequests
       Telegram.Bot.API.Methods
       Telegram.Bot.API.Payments
+      Telegram.Bot.API.RetryAfter
       Telegram.Bot.API.Stickers
       Telegram.Bot.API.Types
       Telegram.Bot.API.UpdatingMessages
@@ -68,6 +69,7 @@ library
     , http-api-data
     , http-client
     , http-client-tls
+    , http-types
     , immortal
     , immortal-worker
     , monad-logger
@@ -103,6 +105,7 @@ executable example-echo-bot
     , http-api-data
     , http-client
     , http-client-tls
+    , http-types
     , immortal
     , immortal-worker
     , monad-logger
@@ -139,6 +142,7 @@ executable example-todo-bot
     , http-api-data
     , http-client
     , http-client-tls
+    , http-types
     , immortal
     , immortal-worker
     , monad-logger
