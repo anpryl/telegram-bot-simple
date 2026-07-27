@@ -10,6 +10,9 @@ module Telegram.Bot.Simple.BotApp.Internal where
 
 import Control.Concurrent (ThreadId, forkIO)
 import Control.Exception.Safe
+-- Qualified as well as unqualified: 'UnliftIO' also exports 'catch' and
+-- 'throw', so naming them here is ambiguous without a prefix.
+import qualified Control.Exception.Safe as Safe
 import Control.Immortal as I
 import Control.Immortal.Worker as I
 import Control.Monad
@@ -109,14 +112,25 @@ issueAction :: BotEnv model action -> Maybe Telegram.Update -> action -> IO ()
 issueAction BotEnv{..} update action =
     atomically $ writeTQueue botActionsQueue (update, action)
 
+{- | How many times one outgoing Telegram call will wait out flood control
+ before giving up on it.
+
+ Bounded, unlike the poll loop, because this one is holding an action that has
+ already been taken off the queue while everything behind it waits. Giving up
+ costs one message; never giving up costs every message after it.
+-}
+maxFloodControlRetries :: Int
+maxFloodControlRetries = 3
+
 -- | Process one action.
 processAction ::
     BotApp model action ->
     BotEnv model action ->
+    (Text -> IO ()) ->
     Maybe Telegram.Update ->
     action ->
     ClientM ()
-processAction BotApp{..} botEnv@BotEnv{..} update action = do
+processAction BotApp{..} botEnv@BotEnv{..} logWarnIO update action = do
     effects <- liftIO $
         atomically $ do
             model <- readTVar botModelVar
@@ -124,7 +138,7 @@ processAction BotApp{..} botEnv@BotEnv{..} update action = do
                 (newModel, effects) -> do
                     writeTVar botModelVar newModel
                     return effects
-    mapM_ (liftIO . issueAction botEnv update) =<< mapM runBot effects
+    mapM_ (liftIO . issueAction botEnv update) =<< mapM (waitOutFloodControlThen . runBot) effects
   where
     botCtx = BotContext botUser update
     runBot act =
@@ -132,13 +146,41 @@ processAction BotApp{..} botEnv@BotEnv{..} update action = do
             act `catchError` throw
                 `catches` botErrorHandlers
 
--- | A job to wait for the next action and process it.
-processActionJob :: BotApp model action -> BotEnv model action -> ClientM ()
-processActionJob botApp botEnv@BotEnv{..} = do
-    (update, action) <- liftIO . atomically $ readTQueue botActionsQueue
-    processAction botApp botEnv update action
+    -- Retries ONE effect, which is the only granularity that is correct here.
+    --
+    -- Not the whole 'processAction': the model has already been updated by the
+    -- 'atomically' block above, so re-running it would apply 'botHandler' to
+    -- the new model a second time. Not the 'mapM' either: effect 3 failing
+    -- would re-send effects 1 and 2. Only the individual call that was
+    -- refused is safe to repeat.
+    --
+    -- Arrives as an exception rather than a 'MonadError' failure: 'runBot'
+    -- above turns every 'ClientError' into one via @catchError throw@ before
+    -- it ever reaches this point.
+    waitOutFloodControlThen = go maxFloodControlRetries
+      where
+        go remaining send =
+            send `Safe.catch` \err -> case retryAfterFromClientError err of
+                Just retryAfter | remaining > 0 -> do
+                    liftIO $ waitOutFloodControl logWarnIO "a bot reply" retryAfter
+                    go (remaining - 1) send
+                _ -> Safe.throw err
 
--- | Process incoming actions indefinitely.
+-- | A job to wait for the next action and process it.
+processActionJob :: BotApp model action -> BotEnv model action -> (Text -> IO ()) -> ClientM ()
+processActionJob botApp botEnv@BotEnv{..} logWarnIO = do
+    (update, action) <- liftIO . atomically $ readTQueue botActionsQueue
+    processAction botApp botEnv logWarnIO update action
+
+{- | Process incoming actions indefinitely.
+
+ Note that the read above commits before the send below is attempted, so an
+ action that escapes 'processAction' is gone: the thread dies holding it and
+ the restart begins from an empty hand. That is why a rate-limited send is
+ retried in place rather than left to the supervisor — a 429 while sending
+ used to drop the message outright, with one @[Error]@ naming this worker and
+ nothing naming what was lost.
+-}
 processActionsIndefinitely ::
     MonadLogger m =>
     MonadUnliftIO m =>
@@ -146,9 +188,12 @@ processActionsIndefinitely ::
     BotEnv model action ->
     m I.Thread
 processActionsIndefinitely botApp botEnv =
-    I.worker "TelegramBotSimple.processActionsIndefinitely" $ const $ liftIO runClient
+    I.worker "TelegramBotSimple.processActionsIndefinitely" $ const $ do
+        logWarnIO <- askLogWarnIO
+        liftIO (runClient logWarnIO)
   where
-    runClient = runClientWithException (processActionJob botApp botEnv) (botClientEnv botEnv)
+    runClient logWarnIO =
+        runClientWithException (processActionJob botApp botEnv logWarnIO) (botClientEnv botEnv)
 
 {- | Capture the caller's logging context as a plain 'IO' action.
 
